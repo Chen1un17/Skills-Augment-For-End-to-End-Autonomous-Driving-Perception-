@@ -1,0 +1,58 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local AI tooling / workspace state
+.agents/
+.claude/
+.codex/
+.orchestra-skills.json
+
+# Logs and runtime artifacts
+*.log
+
+# Generated outputs
+to_human/
+results/
+
+# Large local datasets / experiment artifacts
+data/*
+!data/demo/
+!data/demo/**
+coda-lm-Chinese/
+
+# Scratch files accidentally emitted by shell heredocs
+EOF
+PYEOF
+SCRIPT
+\#!/
+
+# Notebook state
+.ipynb_checkpoints/

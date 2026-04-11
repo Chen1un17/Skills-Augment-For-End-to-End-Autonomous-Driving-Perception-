@@ -1,0 +1,36 @@
+{
+  "name": "dtpqa-real-baseline",
+  "description": "Baseline: DTPQA real with edge-only inference, no reflection",
+  "models": {
+    "edge_model": "Pro/moonshotai/Kimi-K2.5",
+    "edge_max_completion_tokens": 512,
+    "cloud_model": "Pro/moonshotai/Kimi-K2.5",
+    "judge_model": "Pro/moonshotai/Kimi-K2.5",
+    "embedding_model": "BAAI/bge-m3"
+  },
+  "dataset": {
+    "benchmark": "dtpqa",
+    "subset": "real",
+    "question_type": "category_1",
+    "limit": 20,
+    "offset": 0,
+    "annotation_glob": null
+  },
+  "batch_size": 1,
+  "max_retries": 3,
+  "request_timeout_seconds": 300,
+  "batch_sleep_seconds": 0,
+  "skill_store_dir": "/tmp/dtpqa_skills_empty",
+  "clean_skill_store": true,
+  "mcp_server_host": "127.0.0.1",
+  "mcp_server_port": 8003,
+  "enable_judge": true,
+  "judge_only_missing": true,
+  "enable_reflection": false,
+  "entropy_threshold": 1.0,
+  "enable_dtpqa_people_reflection": false,
+  "dtpqa_root": "data/dtpqa",
+  "artifacts_dir": "data/artifacts",
+  "created_at": "2026-04-01T11:12:11.361522",
+  "run_id": "dtpqa_real_baseline_20260401_111211"
+}

@@ -1,0 +1,17 @@
+project_name: ad-cornercase
+default_split: Mini
+default_task: region_perception
+fallback_label: Critical_Unknown_Obstacle
+default_focus_region: lower_center
+max_cases_per_run: 50
+judge_score_threshold: 70.0
+entropy_trigger_floor: 1.0
+server:
+  mount_path: /mcp
+  stateless_http: true
+  json_response: true
+skill_defaults:
+  output_constraints:
+    - Return valid JSON.
+    - Use short labels.
+    - Prefer binary answers for dynamic question tree nodes.

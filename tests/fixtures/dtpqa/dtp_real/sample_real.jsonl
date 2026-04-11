@@ -1,0 +1,1 @@
+{"question_id":"dtpqa-real-1","image":"../../coda_lm/Mini/images/case-1.jpg","question":"What is the main hazard ahead?","options":["Overturned truck","Traffic sign","Construction debris"],"answer":0,"distance_meters":35,"distance_bin":"30m+","weather":"fog, night","question_type":"hazard_identification","sensor_context":"front_camera"}

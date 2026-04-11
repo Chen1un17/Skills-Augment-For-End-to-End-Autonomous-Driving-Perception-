@@ -1,0 +1,42 @@
+[project]
+name = "ad-cornercase"
+version = "0.1.0"
+description = "Training-free autonomous driving corner-case prototype with MCP and cloud VLMs."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.28,<1",
+  "mcp[cli]>=1.23,<2",
+  "openai>=1.100,<2",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+  "tenacity>=9,<10",
+  "typer>=0.15,<1",
+  "uvicorn>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.25,<1",
+]
+
+[project.scripts]
+ad-mcp-server = "ad_cornercase.cli.run_mcp_server:main"
+ad-replay-coda = "ad_cornercase.cli.replay_coda:main"
+ad-eval-coda = "ad_cornercase.cli.evaluate_coda:main"
+ad-replay-dtpqa = "ad_cornercase.cli.replay_dtpqa:main"
+ad-eval-dtpqa = "ad_cornercase.cli.evaluate_dtpqa:main"
+ad-demo-siliconflow = "ad_cornercase.cli.demo_siliconflow:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ad_cornercase"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+testpaths = ["tests"]

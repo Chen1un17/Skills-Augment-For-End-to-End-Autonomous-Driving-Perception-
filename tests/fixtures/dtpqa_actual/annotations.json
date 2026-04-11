@@ -1,0 +1,25 @@
+{
+  "synth": {
+    "category_1": [
+      {
+        "image_path": "../coda_lm/Mini/images/case-1.jpg",
+        "question": "Are there any pedestrians crossing the road?",
+        "answer": "Yes",
+        "distance": 30,
+        "town": "Town01",
+        "weather": "Wet Cloudy Sunset"
+      }
+    ]
+  },
+  "real": {
+    "category_2": [
+      {
+        "image_path": "../coda_lm/Mini/images/case-2.jpg",
+        "question": "Where in the image is the person located?",
+        "answer": "Road",
+        "distance": 50,
+        "precise_distance": 46.54
+      }
+    ]
+  }
+}

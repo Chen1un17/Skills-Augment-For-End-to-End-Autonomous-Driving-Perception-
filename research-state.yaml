@@ -1,0 +1,182 @@
+project:
+  name: ad-cornercase
+  question: >-
+    How can a training-free hierarchical edge-cloud VLM system improve perception
+    robustness on autonomous-driving corner cases, especially under degraded
+    vision and distance-sensitive traffic perception benchmarks?
+  status: in_progress
+  loop_continuity:
+    cron_available: false
+    note: >-
+      No session cron or /loop primitive is available in this environment, so
+      continuity is maintained through research-state.yaml, findings.md, and
+      research-log.md.
+current_focus:
+  benchmark: DTPQA
+  rationale: >-
+    DTPQA integration is implemented end-to-end. The current loop has shifted
+    from infrastructure hardening to benchmark-faithful synth/category_1
+    comparisons under a clean MCP server, with the main question now being why
+    cloud reflection regressed relative to edge-only and how to recover that
+    loss without contaminating the benchmark.
+  dataset_download_blocker: false
+  environment_blocker: >-
+    The runtime and dataset path are resolved. The current blockers are a
+    benchmark-control problem rather than a loader problem: batch scripts were
+    silently swallowing failed cases, client and server were using different
+    MCP ports/URLs, clean hybrid runs were unknowingly reading the historical
+    `data/skills` store, and DTPQA reflection could still anchor on the edge
+    answer or return malformed `Yes/No` outputs on hard far-range cases.
+hypotheses:
+  - id: H1
+    name: DTPQA integration via AnomalyCase reuse
+    prediction: >-
+      DTPQA can be mapped into the existing replay pipeline without a separate
+      orchestration stack by normalizing samples into AnomalyCase.
+    status: confirmed
+  - id: H2
+    name: Distance-stratified evaluation reveals far-range degradation
+    prediction: >-
+      Large-scale DTPQA validation will show lower judge/alignment performance on
+      far-distance bins than near-range bins, and skill reuse/reflection should
+      be tracked separately.
+    status: supported
+  - id: H3
+    name: Case metadata preservation is required for benchmark-quality evaluation
+    prediction: >-
+      The existing replay artifacts lose benchmark-specific metadata, so the
+      orchestrator must persist case metadata for distance-aware analysis.
+    status: confirmed
+  - id: H4
+    name: Reflection regressions are dominated by benchmark-integrity failures
+    prediction: >-
+      The apparent synth/hybrid degradation is driven first by contaminated
+      skill matching and silent batch failures rather than a pure model-quality
+      issue. Clean runs with isolated MCP state should remove most of the
+      earlier regression.
+    status: supported
+  - id: H5
+    name: Baseline-anchored reflection underuses cloud-model capability
+    prediction: >-
+      For DTPQA category_1 false negatives, direct cloud re-perception will
+      outperform the prior text reflection prompt because the cloud model can
+      answer some far-range cases correctly when not anchored to the edge
+      model's wrong `No` explanation.
+    status: supported
+recent_results:
+  clean_baseline_run_id: run-dtpqa-synth-cat1-kimi512
+  real_category_1_pilot_run_id: run-dtpqa-real-cat1-kimi512-pilot
+  selected_edge_configuration:
+    edge_model: Pro/moonshotai/Kimi-K2.5
+    edge_max_completion_tokens: 512
+    skill_store_dir: /tmp/dtpqa_skills_clean_20260331T173713
+  synth_category_1_quick_metrics:
+    total_cases: 7
+    exact_match_accuracy: 1.0
+    judge_score_mean: 94.57
+    mean_latency_ms: 135025.09
+    distance_group_latency_ms:
+      far: 96083.64
+      mid: 89172.74
+      near: 164901.06
+      unknown: 169132.43
+    distance_group_judge_score_mean:
+      far: 95.0
+      mid: 95.0
+      near: 95.0
+      unknown: 92.0
+  real_category_1_pilot_status:
+    completed_cases: 9
+    scored_cases: 9
+    note: >-
+      After restarting the MCP server with an empty skill store, the pilot was
+      expanded to nine fully scored real/category_1 cases spanning near, mid,
+      far, and unknown groups. The first two positive cases remained correct,
+      but five additional positive cases collapsed to "No" answers.
+  real_category_1_pilot_metrics:
+    evaluated_cases: 9
+    exact_match_accuracy: 0.4444444444444444
+    judge_score_mean: 45.0
+    mean_latency_ms: 35385.26
+    distance_group_accuracy:
+      near: 0.5
+      mid: 0.5
+      far: 0.0
+      unknown: 1.0
+    distance_group_latency_ms:
+      near: 51052.15
+      mid: 75292.02
+      far: 8211.61
+      unknown: 20572.09
+    distance_group_judge_score_mean:
+      near: 47.5
+      mid: 50.0
+      far: 3.3333333333333335
+      unknown: 100.0
+  synth_category_1_edge50_metrics:
+    run_id: dtpqa_synth50_20260410_edge_only_v1
+    evaluated_cases: 50
+    exact_match_accuracy: 0.9
+    distance_group_accuracy:
+      far: 0.7333
+      mid: 1.0
+      near: 0.9524
+      unknown: 1.0
+    note: >-
+      The first clean 50-sample synth/category_1 edge-only run with
+      `Qwen/Qwen3.5-9B` reproduced the expected failure mode: all observed
+      mistakes were far-range positives (`offsets 7, 14, 15`).
+  synth_targeted_hybrid_direct_cloud:
+    recovered_offsets:
+      - 7
+      - 15
+    unresolved_offsets:
+      - 14
+    note: >-
+      After replacing DTPQA/category_1 MCP text reflection with direct
+      cloud re-perception, targeted clean hybrid replays recovered two of three
+      edge false negatives. `offset 14` remained wrong even under cloud-only,
+      showing that the remaining gap is partly a raw visual-semantic failure of
+      the cloud model rather than only reflection anchoring.
+next_actions:
+  - Finish the clean 50-sample `cloud_only` and `hybrid` synth/category_1 runs.
+  - Compare `edge_only` vs `cloud_only` vs `hybrid_direct_cloud` on shared offsets.
+  - Quantify how much of the old hybrid regression came from contamination versus
+    genuine cloud-model misperception on hard far cases.
+  - Decide whether DTPQA benchmark runs should permanently disable skill persistence
+    and classic MCP text reflection in favor of direct cloud re-perception.
+  - Produce a paper-facing progress report summarizing the new failure taxonomy.
+diagnostics:
+  reflection_trigger_issue: >-
+    Confirmed. The original entropy/fallback gate never fired on the dominant
+    real DTPQA failure mode because confident false negatives stayed below the
+    `1.0` entropy threshold.
+  reflection_prompt_leakage: >-
+    Fixed. `ground_truth_answer` was removed from the cloud reflection prompt.
+  reflection_timeout_mismatch: >-
+    Confirmed. The old clean MCP server on port 8002 was launched without
+    `REQUEST_TIMEOUT_SECONDS`, so reflection could time out server-side even
+    when the replay client waited longer.
+  reflection_format_alignment: >-
+    Fixed in code and verified by direct MCP probes on historical records:
+    `annotations-9594` now reflects to `Yes`, while the negative
+    `annotations-11749` remains `No`.
+  benchmark_persistence_contamination: >-
+    Fixed. DTPQA reflections no longer persist benchmark-derived skills into
+    the shared skill store, and the formal same-day control run now uses a new
+    empty store `/tmp/dtpqa_skills_clean_20260331T173713` because the previous
+    "clean" store was already contaminated by an earlier debugging probe.
+  batch_runner_failure_swallowing: >-
+    Confirmed and fixed in the current experiment script. The previous
+    `run_large_scale_200.sh` piped replay output through `tail` without
+    `pipefail`, so failed offsets were silently skipped while the script still
+    reported success.
+  mcp_endpoint_mismatch: >-
+    Confirmed and fixed in the current experiment script. The batch harness was
+    probing `8003` but the replay client still defaulted to `http://127.0.0.1:8000/mcp`,
+    so clean client-side `/tmp` stores were not actually isolating the live MCP server.
+  dtpqa_reflection_anchor_bias: >-
+    Supported. Clean targeted runs showed `cloud_only` corrected far false
+    negatives at offsets `7` and `15`, while the old reflection path preserved
+    or worsened them. Replacing DTPQA/category_1 reflection with direct cloud
+    re-perception recovered those offsets.

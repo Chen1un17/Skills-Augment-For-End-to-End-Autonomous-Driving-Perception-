@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "image_path": "../../coda_lm/Mini/images/case-2.jpg",
+      "camera": "front_camera",
+      "weather_tags": ["clear", "daylight"],
+      "scene_id": "scene-02",
+      "distance_bin": "10-20m",
+      "qa_pairs": [
+        {
+          "question_id": "dtpqa-real-2",
+          "question": "Which road user should ego monitor most carefully?",
+          "choices": ["Pedestrian", "Traffic light", "Barrier"],
+          "answer": "A",
+          "question_type": "road_user_focus"
+        }
+      ]
+    }
+  ]
+}
