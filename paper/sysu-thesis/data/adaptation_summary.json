@@ -1,0 +1,62 @@
+{
+  "skill_pilot_positive": {
+    "run_name": "dtpqa_200_final_20260402_103653",
+    "source_file": "data/artifacts/dtpqa_200_final_20260402_103653/predictions.jsonl",
+    "total_cases": 15,
+    "baseline_accuracy": 0.8667,
+    "final_accuracy": 0.9333,
+    "accuracy_delta": 0.0667,
+    "matched_skill_rate": 1.0,
+    "reflection_rate": 0.2,
+    "improved_cases": 1,
+    "harmed_cases": 0,
+    "improved_by_distance": {
+      "far": 1
+    },
+    "harmed_by_distance": {}
+  },
+  "skill_scale_risk": {
+    "run_name": "dtpqa_200_20260402_145332",
+    "source_file": "data/artifacts/dtpqa_200_20260402_145332/predictions.jsonl",
+    "total_cases": 209,
+    "baseline_accuracy": 0.8373,
+    "final_accuracy": 0.7799,
+    "accuracy_delta": -0.0574,
+    "matched_skill_rate": 1.0,
+    "reflection_rate": 0.2775,
+    "improved_cases": 13,
+    "harmed_cases": 25,
+    "improved_by_distance": {
+      "far": 10,
+      "near": 1,
+      "mid": 2
+    },
+    "harmed_by_distance": {
+      "far": 6,
+      "unknown": 18,
+      "mid": 1
+    }
+  },
+  "skill_small_regression": {
+    "run_name": "dtpqa_synth_50_20260401_115405",
+    "source_file": "data/artifacts/dtpqa_synth_50_20260401_115405/predictions.jsonl",
+    "total_cases": 31,
+    "baseline_accuracy": 0.4194,
+    "final_accuracy": 0.2581,
+    "accuracy_delta": -0.1613,
+    "matched_skill_rate": 1.0,
+    "reflection_rate": 0.0968,
+    "improved_cases": 3,
+    "harmed_cases": 8,
+    "improved_by_distance": {
+      "unknown": 1,
+      "near": 1,
+      "far": 1
+    },
+    "harmed_by_distance": {
+      "far": 2,
+      "mid": 1,
+      "near": 5
+    }
+  }
+}

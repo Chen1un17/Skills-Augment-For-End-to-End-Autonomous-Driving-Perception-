@@ -1,0 +1,106 @@
+% !TeX root = ../main.tex
+
+\chapter{方法设计与系统实现}
+\label{cha:method}
+
+\section{边缘端基础感知模块}
+\label{sec:method-edge}
+
+边缘端模块承担系统的高频主链路。其输入为原始图像、任务问题与必要的上下文说明，输出统一格式的结构化对象，包括全局场景描述、局部区域对象、场景三元组、问答结果、候选标签分布、熵值与动作建议。采用统一输出结构的原因在于：后续 skill 检索、云端反思与实验评测都依赖于稳定的中间状态，而不是只依赖最后一句自然语言答案。
+
+在模型选型上，边缘端使用参数规模更可控的开源 VLM。该选择并不是为了追求最强上限，而是为了近似真实部署中的边缘推理条件。由于边缘模型在远距离目标和小尺寸目标上更容易出现假阴性，因此系统在设计上默认边缘端可能失败，并围绕“如何发现并补救失败”组织后续链路。
+
+\section{云端反思与直接重感知}
+\label{sec:method-cloud}
+
+云端模块负责低频深推理与定向纠错。本文实现中，云端不是简单接收边缘答案并做语言后处理，而是在触发后直接读取原始图像进行 cloud re-perception。这样做的动机来自早期实验诊断：若云端仅围绕边缘端错误解释进行文本反思，会被错误语义锚定，导致本可修复的 far false negative 仍被保留。
+
+因此，本文将云端路径设计为两步：
+
+\begin{enumerate}
+  \item 根据当前样本的图像、问题与边缘结构化结果生成纠正后的视觉理解；
+  \item 将纠正结果进一步整理为结构化反思对象，供最终输出和 skill 编译共同使用。
+\end{enumerate}
+
+这一设计使得云端路径既能提供即时准确率增益，也能为后续知识沉淀提供高质量输入。
+
+\section{结构化 Skill Refinement 机制}
+\label{sec:method-skill}
+
+本文将 skill 定义为一种可检索、可约束、可复用的外部知识单元。与自由文本 prompt 不同，skill 由 \texttt{manifest.json} 与 \texttt{SKILL.md} 共同表示，核心字段包括：
+
+\begin{enumerate}
+  \item \texttt{trigger\_tags}：描述技能适用条件；
+  \item \texttt{trigger\_embedding\_text}：用于语义检索；
+  \item \texttt{focus\_region}：显式指定关注区域；
+  \item \texttt{dynamic\_question\_tree}：规定再感知时的问题顺序；
+  \item \texttt{output\_constraints}：限制候选标签、动作与场景图内容；
+  \item \texttt{fallback\_label}：在证据不足时的保守输出标签。
+\end{enumerate}
+
+结构化 skill 的意义在于，它把一次临时性的云端纠错变成一个后续可复用的系统知识对象。对于自动驾驶部署而言，这种知识外化比频繁更新主模型权重更易审计，也更适合灰度扩展。
+
+\section{Skill 检索与重排}
+\label{sec:method-match}
+
+仅依赖向量相似度进行技能匹配，容易导致语义近似但任务不匹配的技能被错误调用。因此，本文在实现中采用多信号重排策略，将 embedding 相似度与触发标签重叠、关键词一致性、天气条件一致性以及同族去重结合起来。这样做的目标不是让系统召回尽可能多的技能，而是尽可能返回少量但高精度的技能候选。
+
+设候选 skill 为 $s$，则重排分数可抽象表示为
+\begin{equation}
+  \text{Score}(x,s)=\lambda_1 \cdot \text{Sim}_{\text{emb}}(x,s)+\lambda_2 \cdot \text{Overlap}_{\text{tag}}(x,s)+\lambda_3 \cdot \text{Match}_{\text{ctx}}(x,s),
+\end{equation}
+其中 $\text{Sim}_{\text{emb}}$ 为向量相似度，$\text{Overlap}_{\text{tag}}$ 为触发标签重叠度，$\text{Match}_{\text{ctx}}$ 为天气、区域、任务类型等上下文一致性度量。该式用于说明本文检索思路，而非声称进行了新的理论学习算法设计。
+
+\section{Benchmark-Faithful 与 Adaptation-Oriented 双协议}
+\label{sec:method-protocol}
+
+为了同时满足 benchmark 公平性与系统完整性，本文采用双协议研究结构。
+
+\subsection{Benchmark-Faithful 协议}
+
+该协议服务于主 benchmark 结论。其核心约束如下：
+
+\begin{enumerate}
+  \item 仅比较 \texttt{edge\_only}、\texttt{cloud\_only} 与 \texttt{hybrid} 三种在线路径；
+  \item 不持久化 benchmark-derived skill；
+  \item 不让历史 skill 反向污染主 benchmark 结果；
+  \item 将所有主结果限定为当前 clean subset 下的系统对比结论。
+\end{enumerate}
+
+在该协议下，主实验回答的是“selective cloud routing 是否有效”，而不是“系统是否已经完成大规模技能学习”。
+
+\subsection{Adaptation-Oriented 协议}
+
+该协议服务于 skill refinement 的机制分析。其核心目的如下：
+
+\begin{enumerate}
+  \item 验证反思结果是否能够成功编译为结构化 skill；
+  \item 验证 skill 复用是否能够在独立评估集中提供准确率增益；
+  \item 观察 skill 大规模复用时的风险，如伤害样本增加、未知距离偏置与检索污染。
+\end{enumerate}
+
+该协议与主 benchmark 明确隔离，因此即便 skill 实验中出现正向或负向结果，也不会被直接转写为 DTPQA 主 benchmark 的结论。
+
+\section{系统实现细节}
+\label{sec:method-impl}
+
+本文原型系统采用模块化实现方式，主要包含边缘感知器、云端反思器、技能编译器、技能匹配器与统一编排器。各模块之间通过结构化对象与 MCP 接口交互，保证了中间状态的一致性和可追踪性。
+
+在实现层面，本文重点关注以下设计原则：
+
+\begin{enumerate}
+  \item \textbf{统一结构化记录}：每个案例均保留 baseline 结果、final 结果、反思结果、技能匹配信息和评测得分。
+  \item \textbf{脚本化实验产出}：所有论文图表均由脚本生成，并与证据台账使用同一数据源。
+  \item \textbf{本地证据与公开引文分离}：实验数值可追溯到本地 artifact，但本地 artifact 不进入参考文献，也不通过 \verb|\cite| 引用。
+  \item \textbf{失败样本可复盘}：保留 case-level 结果，便于在真实数据 pilot 中分析远距离失效与错误类型。
+\end{enumerate}
+
+\section{典型 Skill Artifact}
+\label{sec:method-artifact}
+
+在 adaptation-oriented 路径中，系统已经能够生成完整的结构化 skill artifact。典型技能包含“前方引导车辆、路侧行人和作业人员、窄化车道边界”等触发标签，并通过动态问题树约束模型依次回答“前方是否存在直接约束自车的车辆”“路侧是否有人或作业人员”“右侧边界是否可通行”“最终动作是什么”。这类技能的价值不在于它为单个样本提供了解释，而在于它为后续相似场景提供了更明确的感知关注顺序与输出约束。
+
+\section{本章小结}
+\label{sec:method-summary}
+
+本章从边缘端感知、云端反思、结构化 skill、检索重排、双协议设计和系统实现六个方面介绍了本文方法。整体上，本文方法并未引入新的模型训练过程，而是通过系统组织方式将测试时能力增强显式化、结构化并可复用化。

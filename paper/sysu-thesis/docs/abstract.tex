@@ -1,0 +1,26 @@
+% !TeX root = ../main.tex
+
+\sysusetup{
+  keywords  = {自动驾驶，长尾场景，视觉语言模型，边缘云协同，测试时自适应},
+  keywords* = {autonomous driving, long-tail scenarios, vision-language models, edge-cloud collaboration, test-time adaptation},
+}
+
+\begin{abstract}
+自动驾驶系统在常规感知任务上已经取得较高精度，但在低频、高风险、语义开放的长尾场景中仍然容易出现远距离漏检、局部证据利用不足和开放语义表达不稳定等问题。近年来视觉语言模型开始被用于自动驾驶场景理解与问答，但现有研究多强调离线 benchmark 或集中式大模型推理，对车端实时约束下的选择性云协同与测试时能力增强讨论不足。围绕这一问题，本文研究在冻结主模型权重的前提下，分层边缘云系统能否提升长尾场景感知鲁棒性，以及云端反思经验能否以结构化技能形式沉淀为可复用外部知识。
+
+本文提出一种面向自动驾驶长尾场景的免训练分层边缘云协同感知系统。系统以边缘端小型视觉语言模型承担高频基础感知，以云端多模态大模型承担低频纠错，并以结构化 skill store 存储反思结果，形成“边缘感知、不确定性触发、云端纠正、技能编译、技能复用”的闭环。针对论文论证的证据边界，本文进一步区分两种实验协议：其一为 benchmark-faithful 协议，仅评估 \texttt{edge\_only}、\texttt{cloud\_only} 与 \texttt{hybrid} 三种系统路径的即时效果，不持久化 benchmark-derived skill；其二为 adaptation-oriented 协议，独立评估 skill refinement 的生成、复用及风险，不将其混入 DTPQA 主 benchmark。
+
+实验部分以 DTPQA 的 \texttt{DTP-Synth / Category 1} clean 50-sample shared subset 为主结果。结果表明，\texttt{edge\_only}、\texttt{cloud\_only} 与 \texttt{hybrid} 的准确率分别为 90.0\%、96.0\% 和 98.0\%；在 far-distance 子集上三者准确率分别为 73.3\%、86.7\% 和 93.3\%。相对于 \texttt{edge\_only}，\texttt{hybrid} 修复了 80\% 的边缘错误且未引入新的正确样本退化；相对于 \texttt{cloud\_only}，\texttt{hybrid} 将云调用比例降低 82\%，平均延迟降低 74.9\%。独立 skill 实验进一步表明，结构化技能能够在小规模闭环中带来 6.67 个百分点的准确率增益，但在更大规模复用中仍存在伤害样本增加和未知距离偏置放大的风险。真实 \texttt{DTP-Real / Category 1} pilot 则显示，真实数据下系统仍存在 far-distance collapse 和 false-negative bias。
+
+本文认为，面向自动驾驶部署的有效路径并不是简单使用更大的模型，而是在边缘实时性约束下，通过 selective cloud routing 实现定向补救，并通过结构化 skill refinement 将测试时经验外化为可复用知识。该结论为自动驾驶长尾场景中的 training-free agent 系统设计提供了可执行的工程方案。
+\end{abstract}
+
+\begin{abstract*}
+Autonomous driving perception has achieved strong performance on common scenarios, yet it remains fragile in long-tail cases involving rare events, distant objects, and open-ended semantic descriptions. Vision-language models (VLMs) have recently been introduced into driving scene understanding, but most prior work focuses on offline benchmarks or centralized inference with large models. The deployment-oriented question remains open: under strict edge-side latency constraints, can selective cloud assistance improve robustness without retraining the base model, and can corrective experience be externalized as reusable structured knowledge?
+
+This thesis presents a training-free hierarchical edge-cloud perception system for long-tail autonomous driving scenarios. A compact edge VLM serves as the high-frequency perception backbone, a stronger cloud model acts as a low-frequency reflector, and a structured skill store retains reusable correction patterns. The full loop is organized as edge perception, uncertainty-triggered routing, cloud correction, skill compilation, and skill reuse. To prevent overstating evidence, we separate two protocols. The benchmark-faithful protocol evaluates only the three online routes, namely \texttt{edge\_only}, \texttt{cloud\_only}, and \texttt{hybrid}, without persisting benchmark-derived skills. The adaptation-oriented protocol evaluates skill generation and reuse independently and is kept separate from the main DTPQA benchmark.
+
+The main quantitative result is obtained on the clean 50-sample shared subset of \texttt{DTP-Synth / Category 1}. The exact-match accuracy of \texttt{edge\_only}, \texttt{cloud\_only}, and \texttt{hybrid} is 90.0\%, 96.0\%, and 98.0\%, respectively. On the far-distance subset, the three routes achieve 73.3\%, 86.7\%, and 93.3\%. Compared with \texttt{edge\_only}, the hybrid route rescues 80\% of edge errors without harming previously correct cases. Compared with \texttt{cloud\_only}, it reduces cloud calls by 82\% and mean latency by 74.9\%. Independent skill experiments show that structured skill reuse can yield a positive closed-loop gain in a small pilot, but it still faces stability risks when scaled up. A real-data pilot on \texttt{DTP-Real / Category 1} further reveals far-distance collapse and false-negative bias.
+
+The central conclusion of this thesis is that deployment-oriented improvement should not be framed as simply using a larger model. Instead, a practical path is to combine selective cloud routing with structured skill refinement, so that test-time corrective knowledge can be accumulated outside the frozen model weights. This perspective offers an implementable systems answer to long-tail perception in autonomous driving.
+\end{abstract*}

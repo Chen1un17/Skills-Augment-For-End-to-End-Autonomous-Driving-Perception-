@@ -1,0 +1,44 @@
+% !TeX root = ../main.tex
+
+\chapter{相关研究与理论基础}
+\label{cha:related}
+
+\section{自动驾驶场景理解与问答基准}
+\label{sec:related-benchmark}
+
+自动驾驶多模态理解研究的第一条主线是构建具有交通语义的场景理解和问答 benchmark。早期数据集更多关注检测、跟踪或三维感知，而后续工作逐渐扩展到视觉问答、文本读取与驾驶语义推理\cite{caesar2020nuscenes,dosovitskiy2017carla,marcu2024lingoqa,tom2023readingbetweenthelanes,sima2024drivelm,ding2024holisticautonomousdriving,charoenpitaks2025tbbench,guo2024drivemllm,choudhary2023talk2bev}。这类基准推动研究从“图像中有什么对象”走向“交通场景中发生了什么以及其驾驶含义是什么”。
+
+本文最相关的 benchmark 是 DTPQA\cite{theodoridis2025dtpqa,theodoridis2025evaluating}。该 benchmark 显式标注目标距离，并将问题限定为交通感知型问答，使研究者可以直接观察模型在 near、mid 与 far 距离上的性能变化。对于本文而言，DTPQA 的价值不在于提供一个更大的排行榜，而在于提供一个能够揭示边缘小模型远距离失败模式的可操作评测入口。
+
+\section{自动驾驶中的多模态大模型}
+\label{sec:related-advlm}
+
+近年来，大模型能力被迅速引入自动驾驶任务。DriveLM、SENNA、SimpleLLM4AD、LaVIDA Drive、OmniDrive、V3LMA、LightEMMA 与 DynRSL-VLM 等工作探索了图结构问答、三维信息融合、多阶段推理以及端到端驾驶理解的可能性\cite{sima2024drivelm,jiang2024senna,zheng2024simplellm4ad,jiao2024lavidadrive,wang2024omnidrive,lubberstedt2025v3lma,qiao2025lightemma,zhou2025dynrslvlm}。这些研究说明，大模型在开放语义驾驶理解上具备强大的表达能力，但也暴露出模型规模大、推理链路长和部署成本高等问题。
+
+与上述工作不同，本文并不尝试设计一个更大的统一驾驶模型，而是把重点放在系统分层与角色分工上。具体而言，边缘端维持高频、低时延的主链路，云端负责低频纠错与知识沉淀。本文关注的不是模型上限本身，而是在部署约束下如何利用不同模型的能力边界。
+
+\section{视觉语言模型的感知短板}
+\label{sec:related-visualgap}
+
+多项研究指出，即便是能力较强的 VLM，在基础视觉感知方面仍存在不稳定性。Vision Language Models Are Blind、Eyes Wide Shut、How Well Can Vision Language Models See Image Details、VisOnlyQA、What’s in the Image?、HallusionBench 等工作从视觉细节、几何关系、局部区域利用与幻觉等角度揭示了 VLM 的脆弱性\cite{rahmanzadehgervi2024vlmsblind,tong2024eyeswideshut,gou2024imagedetails,kamoi2024visonlyqa,kaduri2025whatsintheimage,guan2024hallusionbench}。更广义的多模态评测工作 MMBench、MMMU 与 VLMEvalKit 也表明，大模型在跨任务、多场景评测中的能力差异显著\cite{liu2024mmbench,yue2024mmmu,duan2024vlmevalkit}。
+
+这些发现对本文有两点直接启示。第一，VLM 的失败往往不是“不会推理”，而是“没有抓住关键视觉证据”；第二，在自动驾驶场景中，远距离小目标、边界模糊目标和开放语义交通实体会放大这一问题。因此，选择性云协同应更多地被理解为视觉证据补救，而不是简单的语言后处理。
+
+\section{测试时自适应、Agent 与外部知识}
+\label{sec:related-agent}
+
+在自然语言处理和通用 agent 研究中，ReAct、Reflexion、Self-Refine、Toolformer、RAG、REALM 和 Chain-of-Thought 等工作表明，模型能力可以在不更新参数的情况下，通过工具调用、检索增强、自我反思和外部记忆得到提升\cite{yao2023react,shinn2023reflexion,madaan2023selfrefine,schick2023toolformer,lewis2020rag,guu2020realm,wei2022cot}。这一研究路线的核心思想是：能力演化不必全部发生在权重空间，也可以发生在推理时的上下文编排和外部知识组织中。
+
+本文将这一思想迁移到自动驾驶长尾场景。与通用文本 agent 不同，自动驾驶系统要求结构化输出、可审计行为与实时约束，因此本文进一步引入 skill 的结构化表示，用于约束关注区域、问题树和候选标签。换言之，本文把测试时自适应从“反思一段文本”推进到“沉淀为可复用系统知识”。
+
+\section{边缘云协同与系统实现基础}
+\label{sec:related-system}
+
+边缘云协同的系统思想已经在自动驾驶与智能系统中得到广泛讨论\cite{xie2025vlmsreadyad,chen2025automatedevaluationcornercases}。在模型侧，CLIP、Flamingo、LLaVA、InternVL、InternVL3、Qwen-VL、Qwen2-VL、Qwen2.5-VL、Ovis、DeepSeek-VL、DeepSeek-VL2、DINOv2 和 Cambrian-1 等模型构成了本文系统的能力背景\cite{radford2021clip,alayrac2022flamingo,liu2023visualinstructiontuning,chen2024internvl,zhu2025internvl3,bai2023qwenvl,wang2024qwen2vl,bai2025qwen25vl,lu2024ovis,lu2024deepseekvl,wu2024deepseekvl2,oquab2024dinov2,tong2024cambrian1}。在实现层，ViT、RoFormer、MoE、FlashAttention-2 与 Transformers 等研究提供了视觉编码、位置建模、稀疏计算和推理框架的基础设施\cite{dosovitskiy2021vit,su2024roformer,shazeer2017moe,dao2024flashattention2,wolf2020transformers}。
+
+此外，针对自动驾驶视觉理解的可靠性与公平评测，已有工作强调应明确实验协议、区分基准结果与工程原型结果，并尽量避免混淆真实部署收益与 benchmark 排名\cite{theodoridis2025evaluating,chen2024rightwayevaluatingvlm}. 本文采纳这一原则，将主 benchmark 与独立适配实验严格分离。
+
+\section{本章小结}
+\label{sec:related-summary}
+
+综上所述，现有文献分别讨论了自动驾驶问答基准、多模态大模型、VLM 视觉短板以及测试时工具增强，但仍缺少一个同时面向边缘实时性、选择性云协同、结构化知识沉淀和证据分层写作的统一系统框架。本文工作的定位正是填补这一交叉空白：在不宣称 full benchmark SOTA 的前提下，给出一个部署导向、证据边界清晰的 training-free agent 方案。

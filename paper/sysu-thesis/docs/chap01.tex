@@ -1,0 +1,60 @@
+% !TeX root = ../main.tex
+
+\chapter{绪论}
+\label{cha:introduction}
+
+\section{研究背景与意义}
+\label{sec:intro-background}
+
+自动驾驶系统的核心瓶颈正在从常规目标检测与车道线识别，逐步转向低频、高风险、语义开放的长尾场景理解。真实道路中的失败往往并非“完全看不见常见目标”，而是体现在远距离目标漏检、局部证据利用不足、开放语义问答不稳定以及复杂交互场景下的动作建议偏差等方面\cite{caesar2020nuscenes,dosovitskiy2017carla,liu2024surveyadatasets,kaur2021surveyselfdrivingsimulators}。随着视觉语言模型（Vision-Language Model, VLM）将视觉感知与语言表达统一到同一推理框架中，自动驾驶场景理解从固定类别识别扩展到“看见什么”“为什么重要”“应该如何应对”等更高层问题\cite{marcu2024lingoqa,sima2024drivelm,guo2024drivemllm,wang2024omnidrive}。
+
+然而，自动驾驶部署场景与多数多模态 benchmark 仍存在显著差异。首先，车端系统受限于时延、算力、能耗与稳定性，难以直接承载常驻的大型多模态模型。其次，长尾场景出现频率低、形态变化快，若每次都依赖“数据回流、人工标注、重新训练、重新验证”的闭环，适配周期长且工程代价高。再次，已有研究虽然揭示了小型 VLM 在交通感知中的距离敏感退化与视觉细节短板，但对于在冻结主模型权重条件下如何进行测试时能力增强，仍缺少部署导向的系统答案\cite{xie2025vlmsreadyad,rahmanzadehgervi2024vlmsblind,tong2024eyeswideshut,gou2024imagedetails,kamoi2024visonlyqa}.
+
+因此，本文关注一个更加接近工程部署的问题：在不更新主模型权重的前提下，是否可以通过分层边缘云协同与结构化技能沉淀，提升自动驾驶长尾场景感知的鲁棒性，并在有限云调用预算下兼顾准确率、时延和可复用性。该问题不仅具有学术意义，也直接关系到自动驾驶系统在真实场景中的可持续迭代路径。
+
+\section{研究问题与挑战}
+\label{sec:intro-problem}
+
+围绕上述背景，本文聚焦以下三个研究问题。
+
+\begin{enumerate}
+  \item 在冻结主模型权重的条件下，边缘端小型 VLM 在长尾交通感知任务上的远距离失效，能否通过系统级边缘云协同得到补救？
+  \item selective cloud routing 是否能够在较低云调用比例下修复关键 far-range failure，而不是以全面转向云端为代价换取更高准确率？
+  \item 云端反思所获得的纠错经验，能否被编译为可检索、可约束、可复用的结构化 skill，从而形成训练外的测试时适配机制？
+\end{enumerate}
+
+为回答上述问题，本文需要同时面对以下挑战。
+
+\begin{enumerate}
+  \item \textbf{触发挑战}：若路由阈值过低，系统将频繁调用云端，失去部署意义；若阈值过高，又会错过真正需要纠正的长尾样本。
+  \item \textbf{表示挑战}：云端输出通常是自由文本，而边缘系统需要的是可执行、可审计的结构化知识表示。
+  \item \textbf{评测挑战}：开放语义交通感知既要衡量最终答案是否正确，也要衡量结构化结果是否稳定、时延是否可接受。
+  \item \textbf{证据边界挑战}：benchmark 公平性要求避免 benchmark contamination，因此必须将主 benchmark 评估与 skill 学习效果严格分离。
+\end{enumerate}
+
+\section{研究思路与主要贡献}
+\label{sec:intro-contribution}
+
+针对上述问题，本文提出一种免训练分层边缘云协同感知系统。系统以边缘端小型 VLM 作为高频基础感知器，以云端大模型作为低频反思器，以结构化 skill store 作为外部知识容器，构成“边缘感知、不确定性触发、云端纠正、技能编译、技能复用”的闭环。与“直接使用更大模型”或“纯依赖训练微调”的方案不同，本文强调在冻结主模型权重条件下，通过 selective cloud routing 与结构化知识外化实现测试时增强\cite{yao2023react,shinn2023reflexion,madaan2023selfrefine,schick2023toolformer,lewis2020rag,guu2020realm}.
+
+本文的主要贡献可概括为以下三点。
+
+\begin{enumerate}
+  \item 提出一种面向自动驾驶长尾场景的 training-free hierarchical edge-cloud perception framework，并明确区分边缘高频主链路与云端低频纠错链路。
+  \item 设计结构化 skill refinement 机制，将云端反思结果编译为触发标签、关注区域、动态问题树、输出约束和回退标签等可复用知识单元。
+  \item 在 DTPQA 的 clean subset 上给出三路系统对比结果，并将主实验、独立适配实验与真实数据 pilot 局限性分析分别组织为强结论、机制结论与观察结论。
+\end{enumerate}
+
+\section{论文结构安排}
+\label{sec:intro-organization}
+
+全文共分为六章，各章节内容安排如下。
+
+\begin{enumerate}
+  \item 第一章为绪论，介绍研究背景、问题定义、挑战以及本文的主要贡献。
+  \item 第二章为相关研究与理论基础，综述自动驾驶多模态理解、VLM 感知短板、边缘云协同和测试时自适应等方向。
+  \item 第三章给出问题定义与系统总体架构，说明研究假设、路由目标与系统组成。
+  \item 第四章介绍方法设计与系统实现，详细描述边缘感知、云端反思、skill refinement 以及双协议实验设计。
+  \item 第五章汇报实验设计、结果与分析，分别讨论三路主实验、独立 skill 实验及真实数据 pilot 的局限性。
+  \item 第六章总结全文工作，并讨论当前系统的局限与未来扩展方向。
+\end{enumerate}

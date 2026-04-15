@@ -1,0 +1,10 @@
+claim_id,evidence_tier,chapter,section,metric,value,source_kind,source_file,figure_or_table,summary
+C1,primary,第5章,主实验A,hybrid_exact_match_accuracy,0.9800,local_artifact,experiments/dtpqa-integration/results/thesis_synth50_three_way_20260410.json,表5-1 / 图5-3,Synth50 clean subset 上，hybrid 获得最高整体准确率。
+C2,primary,第5章,主实验A,hybrid_far_accuracy,0.9333,local_artifact,experiments/dtpqa-integration/results/thesis_synth50_three_way_20260410.json,表5-1 / 图5-3,hybrid 在 far-distance 子集上明显优于 edge_only。
+C3,primary,第5章,主实验A,hybrid_cloud_call_reduction_vs_cloud_only,0.8200,local_artifact,experiments/dtpqa-integration/results/thesis_synth50_three_way_20260410.json,图5-5,hybrid 相对 cloud_only 明显减少云调用比例。
+C4,primary,第5章,主实验A,hybrid_latency_reduction_vs_cloud_only,0.7493,local_artifact,experiments/dtpqa-integration/results/thesis_synth50_three_way_20260410.json,图5-4 / 图5-5,hybrid 在保持高准确率的同时显著降低平均时延。
+C5,secondary,第5章,局限性分析,real_far_accuracy,0.0000,local_artifact,experiments/dtpqa-integration/results/current_real_cat1_pilot_summary.json,图5-6,real pilot 在 far 组出现完全崩塌，体现外部效度问题。
+C6,secondary,第5章,局限性分析,real_judge_score_mean,45.0000,local_artifact,experiments/dtpqa-integration/results/current_real_cat1_pilot_summary.json,图5-6,real pilot 的 judge score 与 exact match 同步下滑。
+SA-skill_pilot_positive,mechanism,第5章,主实验B,final_vs_baseline_accuracy_delta,0.0667,local_artifact,data/artifacts/dtpqa_200_final_20260402_103653/predictions.jsonl,图5-7 / 表5-2,dtpqa_200_final_20260402_103653 用于独立 skill/adaptation 机制实验。
+SA-skill_scale_risk,mechanism,第5章,主实验B,final_vs_baseline_accuracy_delta,-0.0574,local_artifact,data/artifacts/dtpqa_200_20260402_145332/predictions.jsonl,图5-7 / 表5-2,dtpqa_200_20260402_145332 用于独立 skill/adaptation 机制实验。
+SA-skill_small_regression,mechanism,第5章,主实验B,final_vs_baseline_accuracy_delta,-0.1613,local_artifact,data/artifacts/dtpqa_synth_50_20260401_115405/predictions.jsonl,图5-7 / 表5-2,dtpqa_synth_50_20260401_115405 用于独立 skill/adaptation 机制实验。

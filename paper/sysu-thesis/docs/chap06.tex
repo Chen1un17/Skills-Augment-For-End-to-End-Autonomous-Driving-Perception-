@@ -1,0 +1,48 @@
+% !TeX root = ../main.tex
+
+\chapter{总结与展望}
+\label{cha:conclusion}
+
+\section{全文总结}
+\label{sec:conclusion-summary}
+
+本文围绕“在冻结主模型权重的条件下，如何提升自动驾驶长尾场景感知鲁棒性”这一问题，设计并实现了一套免训练分层边缘云协同感知系统。系统以边缘端小型 VLM 作为高频基础感知器，以云端多模态模型作为低频反思与纠错器，以结构化 skill store 作为外部知识容器，形成了边缘感知、选择性云协同与技能沉淀相结合的完整闭环。
+
+在研究叙事上，本文将证据严格划分为三层。第一层以 \texttt{DTP-Synth / Category 1} clean 50-sample 三路对比为主结果，证明 selective cloud routing 在较低云调用比例下能够有效修复边缘模型的 far-distance failure。第二层以独立 skill 适配实验为证据，说明结构化 skill 具备测试时自适应潜力，但在扩大复用范围后仍存在明显风险。第三层以真实数据 pilot 为证据，说明当前系统在真实分布上仍受到 far-collapse 和 false-negative bias 的制约。这样的证据组织避免了把 prototype 优势夸写成完整 benchmark 结论，也保证了论文论断与证据强度一致。
+
+\section{主要结论}
+\label{sec:conclusion-findings}
+
+本文得到的主要结论如下。
+
+\begin{enumerate}
+  \item 在 benchmark-faithful 协议下，\texttt{hybrid} 相比 \texttt{edge\_only} 与 \texttt{cloud\_only} 同时取得了更优的准确率与更低的系统代价，说明 selective cloud routing 是缓解长尾场景远距离失效的有效路径。
+  \item training-free 系统的关键不在于“完全不学习”，而在于将学习从模型权重空间迁移到外部知识空间。结构化 skill refinement 使云端纠错经验具备了被存储、检索与复用的可能性。
+  \item synth clean subset 能够清晰暴露距离敏感问题，但不足以替代真实分布评估。真实数据 pilot 表明，系统在外部世界中仍存在明显失效模式，因此当前工作更适合作为部署导向的系统原型验证，而非最终完备方案。
+\end{enumerate}
+
+\section{不足与未来工作}
+\label{sec:conclusion-future}
+
+尽管本文已经完成了从系统设计、实验组织到论文写作的闭环，但仍存在以下不足。
+
+\begin{enumerate}
+  \item 主结果目前集中于 \texttt{Category 1} 的 clean subset，尚未覆盖完整 DTPQA 或更多开放语义任务。
+  \item 独立 skill 实验已经说明结构化技能可能带来收益，但尚未建立严格的 adaptation split 与长期学习曲线。
+  \item 当前 edge/cloud 仍主要是逻辑角色分层，而非真实车载硬件与远程服务之间的物理部署切分，时延数据仍需在真实边缘设备上进一步验证。
+  \item 真实数据 pilot 暴露了明显的 far-collapse 与 false-negative bias，说明当前路由和技能机制仍不足以支撑复杂真实分布下的稳定运行。
+\end{enumerate}
+
+基于以上不足，后续工作可以从以下几个方向继续推进。
+
+\begin{enumerate}
+  \item 构建独立的 skill 适配集与评估集，对 skill precision、coverage、harm rate 和长期复用收益进行系统量化。
+  \item 将当前方法扩展到更多问题类型，如交通标志识别、意图判断、方向判断与复杂动态交互理解。
+  \item 在真实车端硬件条件下重新测量端到端延迟、带宽占用与故障恢复行为，进一步验证边缘云协同的工程可行性。
+  \item 结合更强的视觉区域选择与风险感知策略，降低真实数据中的 false-negative bias，并提高对 far-distance 小目标的敏感性。
+\end{enumerate}
+
+\section{结语}
+\label{sec:conclusion-end}
+
+总体而言，本文的核心贡献不在于提出一个更大的模型，而在于给出一个更贴近自动驾驶部署约束的系统路径：在边缘实时性前提下，以 selective cloud routing 提供定向补救，再以 structured skill refinement 将经验外化为可复用知识。该路径为自动驾驶长尾场景中的 training-free agent 研究提供了一个可执行、可复盘、可继续扩展的起点。
