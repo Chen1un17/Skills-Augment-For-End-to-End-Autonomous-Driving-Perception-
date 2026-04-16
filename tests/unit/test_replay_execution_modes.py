@@ -113,6 +113,22 @@ class _NoSkillClient:
         raise AssertionError("DTPQA hybrid path should use direct cloud perception instead of MCP reflection")
 
 
+class _ReflectionClient:
+    async def match_skills(self, request):  # noqa: ANN001
+        del request
+        return SkillMatchResult(matches=[])
+
+    async def reflect_anomaly(self, request):  # noqa: ANN001
+        del request
+        from ad_cornercase.schemas.reflection import ReflectionResult
+
+        return ReflectionResult(
+            corrected_label="Yes",
+            reflection_summary="Reflection path used instead of direct cloud reroute.",
+            should_persist_skill=True,
+        )
+
+
 @pytest.mark.asyncio
 async def test_replay_orchestrator_hybrid_uses_direct_cloud_perception_for_dtpqa_people_cases(tmp_path: Path) -> None:
     runtime_settings = _runtime_settings(tmp_path)
@@ -143,3 +159,34 @@ async def test_replay_orchestrator_hybrid_uses_direct_cloud_perception_for_dtpqa
     assert record.reflection_result.corrected_label == "Yes"
     assert record.reflection_result.should_persist_skill is False
     assert record.metadata["hybrid_strategy"] == "direct_cloud_perception"
+
+
+@pytest.mark.asyncio
+async def test_replay_orchestrator_can_disable_direct_cloud_reroute_for_category1(tmp_path: Path) -> None:
+    runtime_settings = _runtime_settings(tmp_path)
+    runtime_settings.enable_dtpqa_category1_direct_cloud_reroute = False
+    prompt_renderer = PromptRenderer(runtime_settings.prompts_dir)
+    edge_agent = EdgeAgent(
+        provider=FakeStructuredVisionProvider({"EdgePerceptionResult": _edge_false_negative_payload}),
+        prompt_renderer=prompt_renderer,
+        runtime_settings=runtime_settings,
+        project_settings=ProjectSettings(),
+    )
+    cloud_agent = EdgeAgent(
+        provider=FakeStructuredVisionProvider({"EdgePerceptionResult": _payload("Yes")}),
+        prompt_renderer=prompt_renderer,
+        runtime_settings=runtime_settings,
+        project_settings=ProjectSettings(),
+    )
+    orchestrator = ReplayOrchestrator(
+        edge_agent=edge_agent,
+        cloud_perception_agent=cloud_agent,
+        runtime_settings=runtime_settings,
+        project_settings=ProjectSettings(),
+    )
+
+    record = await orchestrator._run_hybrid_case(_case(tmp_path), _ReflectionClient())  # noqa: SLF001
+
+    assert record.reflection_result is not None
+    assert record.reflection_result.should_persist_skill is True
+    assert record.metadata["hybrid_strategy"] == "mcp_reflection"

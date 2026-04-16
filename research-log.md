@@ -233,3 +233,50 @@
   3. skill / routing metrics (`skill_match_rate`, `reflection_precision`),
   4. a direct table that aligns our current `Cat.1-Synth` runs with published
      DTPQA baselines.
+- 2026-04-16 implementation loop: added a plan-driven synth-only workflow for a
+  balanced 500-case DTPQA experiment across categories `1-6`.
+  New components:
+  1. `build_dtpqa_synth_balanced_plan.py` to freeze a shared 500-case plan plus
+     smoke and refinement splits.
+  2. `run_dtpqa_plan.py` to execute `smoke`, `full`, `refinement_adaptation`,
+     and `refinement_holdout` selections with resumable status files and failure
+     logs.
+  3. `build_dtpqa_synth500_three_way_report.py` to summarize overall,
+     per-category, and per-distance metrics across `edge_only`, `cloud_only`,
+     and `hybrid`.
+  4. `build_dtpqa_skill_refinement_report.py` to summarize category-isolated
+     shadow refinement runs without contaminating the benchmark-faithful report.
+  5. `launch_dtpqa_synth500_workflow.py` to orchestrate staged execution in an
+     AutoResearch/AutoGPT-style workflow.
+- 2026-04-16 implementation loop: made DTPQA/category_1 direct cloud
+  re-perception a runtime-controlled switch via
+  `ENABLE_DTPQA_CATEGORY1_DIRECT_CLOUD_REROUTE`. The default remains benchmark-
+  faithful direct cloud for category_1, but shadow refinement can now disable
+  that reroute and fall back to MCP reflection so synth/category_1 adaptation
+  runs can actually persist and reuse skills.
+- 2026-04-16 inner-loop: executed the balanced multi-category synth smoke on the
+  shared 18-case plan (`3` cases per category) with real SiliconFlow-backed
+  inference. Results:
+  1. `dtpqa_synth18_sf0416_edge_only` completed `18/18` with no failures.
+  2. `dtpqa_synth18_sf0416_cloud_only` initially completed `17/18` because
+     `annotations-category_5-8460` hit the old `300s` request timeout, then was
+     resumed successfully to `18/18` under `600s`.
+  3. `dtpqa_synth18_sf0416_hybrid` completed `18/18` with a fresh MCP server
+     and isolated skill store.
+- 2026-04-16 outer-loop: synthesized the smoke report at
+  `experiments/dtpqa-integration/results/dtpqa_synth18_three_way_sf0416.{json,md}`.
+  The shared-case intersection is exactly `18`, satisfying the smoke acceptance
+  criteria. On this slice:
+  1. `edge_only` exact-match accuracy = `0.5556`, mean latency `12.2s`.
+  2. `cloud_only` exact-match accuracy = `0.5000`, mean latency `113.2s`.
+  3. `hybrid` exact-match accuracy = `0.5556`, mean latency `19.0s`.
+  4. Hybrid routing remained mostly dormant on the smoke slice:
+     `17 edge_only_passthrough`, `1 direct_cloud_perception`, `0 skill matches`.
+  Direction: PROCEED TO FULL RUN, but only with explicit long-request settings
+  because real cloud latency is high enough that the previous `300s` timeout is
+  not robust for long multi-category sweeps.
+- 2026-04-16 implementation loop: extended
+  `launch_dtpqa_synth500_workflow.py` so staged runs can now accept explicit
+  `--request-timeout-seconds` and `--max-retries`, allowing the formal
+  synth-500 run to stay resumable without relying on hard-coded 300-second
+  defaults.

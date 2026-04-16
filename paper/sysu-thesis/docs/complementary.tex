@@ -3,24 +3,23 @@
 \chapter{补充材料}
 \label{cha:appendix}
 
-\section{论文证据台账说明}
+\section{内部证据台账说明}
 \label{sec:appendix-ledger}
 
-为保证正文中的每个关键数字都可追溯，本文在论文工程中单独维护了证据台账。台账仅服务于内部实验核对，不作为参考文献，不通过 \verb|\cite| 引用。表~\ref{tab:evidence-ledger} 总结了正文核心结论与其对应证据来源。
+为保证正文中的关键数值具备可核查性，本文在研究过程中维护了内部证据台账。该台账仅用于实验结果的交叉核对与写作一致性检查，不作为参考文献，也不通过 \verb|\cite| 在正文中引用。表~\ref{tab:evidence-ledger} 总结了正文主要结论与其对应的证据层次。
 
 \begin{table}[htbp]
   \centering
   \small
-  \bicaption{核心结论与证据来源对应关系}{Mapping between core claims and internal evidence sources}
+  \bicaption{核心结论与内部证据层次的对应关系}{Mapping between core claims and internal evidence layers}
   \label{tab:evidence-ledger}
   \begin{tabularx}{\textwidth}{l l X}
     \toprule
-    结论层级 & 证据来源 & 正文落点 \\
+    结论层级 & 证据来源 & 正文对应位置 \\
     \midrule
-    一级强结论 & Synth50 三路 clean subset 汇总统计 & 第五章主实验 A \\
-    二级机制结论 & 独立 skill 适配实验汇总统计 & 第五章主实验 B \\
-    三级观察结论 & Real Category 1 pilot 与 intervention quick pilot & 第五章真实数据局限性分析 \\
-    结构性证据 & 结构化 skill manifest 与可读 skill 文档 & 第四章 Skill Refinement 机制 \\
+    强结论层 & 清洗共享子集上的三路系统统计 & 第五章主实验 \\
+    机制结论层 & 独立适配实验统计与结构化知识案例 & 第五章机制分析与独立适配实验 \\
+    观察结论层 & 真实数据试验与定向干预结果 & 第五章真实数据试验 \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -28,9 +27,9 @@
 \section{图表来源说明}
 \label{sec:appendix-figure-source}
 
-本文所有图表均通过脚本自动生成，并与正文使用同一套证据台账数据。结构图用于表达系统组成与执行流程，数据图用于展示准确率、时延、收益比与失效模式。图注统一采用“本文实验统计”或“本文方法示意图”的表述，不引用本地路径，也不将本地实验文件作为参考文献条目。
+本文图表均由统一的数据整理与绘图流程生成，并与正文中报告的统计结果保持一致。示意图用于表达系统组成与推理流程，数据图用于呈现准确率、时延、系统收益与典型失效模式。正文中的图注均采用“本文方法示意图”或“本文实验统计”的表述，不将中间统计文件作为参考文献来源。
 
 \section{引文范围说明}
 \label{sec:appendix-citation-scope}
 
-本文参考文献全部来自公开论文、期刊、会议或公开技术报告。为了满足本科论文写作规范并保留完整背景脉络，文末参考文献统一使用公开 BibTeX 条目组织。与此同时，本地 artifact、Markdown 草稿、日志文件以及 CSV/JSON 汇总表均被显式排除在参考文献系统之外。
+本文参考文献全部来自公开论文、会议论文、期刊文章或公开技术报告。实验过程中产生的运行记录、中间统计表和内部分析备忘仅作为研究佐证材料，不纳入参考文献系统，也不直接作为正文引文来源。

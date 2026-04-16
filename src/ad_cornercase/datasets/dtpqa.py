@@ -207,6 +207,10 @@ class DTPQADatasetLoader:
             paths = sorted(self._root.glob(annotation_glob))
             return [path for path in paths if path.is_file()]
 
+        root_annotations = self._root / "annotations.json"
+        if root_annotations.exists():
+            return [root_annotations]
+
         subset_roots: list[Path] = []
         normalized_subset = subset.lower()
         if subset not in {"all", "*"}:
@@ -230,13 +234,13 @@ class DTPQADatasetLoader:
             "*annotation*.json",
             "*benchmark*.json",
         )
-        discovered: dict[Path, None] = {}
+        discovered: dict[Path, Path] = {}
         for base in search_roots:
             for pattern in patterns:
                 for path in base.rglob(pattern):
                     if path.is_file():
-                        discovered[path] = None
-        return sorted(discovered)
+                        discovered[path.resolve()] = path
+        return sorted(discovered.values())
 
     def _resolve_image_path(self, annotation_path: Path, image_value: str) -> Path:
         raw = Path(image_value)
@@ -328,9 +332,10 @@ class DTPQADatasetLoader:
                     return cases
 
                 question = _format_question(raw_question, options)
-                case_id = _stringify(_first_present(row, "question_id", "sample_id", "id", "uid")).strip() or (
-                    f"{annotation_path.stem}-{index}"
-                )
+                case_id = _stringify(_first_present(row, "question_id", "sample_id", "id", "uid")).strip()
+                if not case_id:
+                    suffix = normalized_question_type or "unknown"
+                    case_id = f"{annotation_path.stem}-{suffix}-{index}"
                 frame_id = _stringify(
                     _first_present(row, "frame_id", "image_id", "frame", "sample_id", "id")
                 ).strip() or case_id

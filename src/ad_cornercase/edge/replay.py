@@ -72,6 +72,15 @@ class ReplayOrchestrator:
         question = case.question.strip().lower()
         return any(token in question for token in _PERSON_LIKE_TOKENS)
 
+    def _should_use_direct_cloud_perception(self, case: AnomalyCase) -> bool:
+        benchmark = str(case.metadata.get("benchmark") or "").strip().lower()
+        question_type = str(case.metadata.get("question_type") or "").strip().lower()
+        return (
+            benchmark == "dtpqa"
+            and question_type == "category_1"
+            and self._runtime_settings.enable_dtpqa_category1_direct_cloud_reroute
+        )
+
     def _answers_no(self, result: EdgePerceptionResult) -> bool:
         if result.qa_report:
             answer = result.qa_report[0].answer
@@ -324,7 +333,7 @@ class ReplayOrchestrator:
         final_result = current_result
         should_force_reflect = bool(case.metadata.get("force_reflection")) and not match_result.matches
         if should_force_reflect or self._should_reflect(case, current_result):
-            if self._cloud_perception_agent is not None and self._is_dtpqa_people_question(case):
+            if self._cloud_perception_agent is not None and self._should_use_direct_cloud_perception(case):
                 logger.info("Running case %s: direct cloud re-perception", case.case_id)
                 start = perf_counter()
                 final_result = await self._cloud_perception_agent.perceive(case)

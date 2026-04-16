@@ -65,6 +65,7 @@ class RuntimeSettings(BaseModel):
     request_timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS
     max_retries: int = 3
     enable_dtpqa_people_reflection_trigger: bool = True
+    enable_dtpqa_category1_direct_cloud_reroute: bool = True
 
     def project_root(self) -> Path:
         return self.settings_path.resolve().parent.parent
@@ -111,6 +112,11 @@ def get_runtime_settings() -> RuntimeSettings:
         request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", str(DEFAULT_REQUEST_TIMEOUT_SECONDS))),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
         enable_dtpqa_people_reflection_trigger=os.getenv("ENABLE_DTPQA_PEOPLE_REFLECTION_TRIGGER", "1").lower()
+        not in {"0", "false", "no"},
+        enable_dtpqa_category1_direct_cloud_reroute=os.getenv(
+            "ENABLE_DTPQA_CATEGORY1_DIRECT_CLOUD_REROUTE",
+            "1",
+        ).lower()
         not in {"0", "false", "no"},
     )
 

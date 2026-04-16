@@ -2,17 +2,19 @@
 
 \begin{notation}
 
-  \begin{notationlist}{3.2em}
+  \begin{notationlist}{3.6em}
     \item[VLM] 视觉语言模型（Vision-Language Model）
     \item[DTPQA] 距离标注交通感知问答基准（Distance-Annotated Traffic Perception Question Answering）
-    \item[MCP] 模型上下文协议（Model Context Protocol）
     \item[EM] 精确匹配准确率（Exact Match Accuracy）
+    \item[$x$] 单个输入样本，通常表示为图像与问题描述组成的二元组
+    \item[$\theta_e$] 边缘感知模型的冻结参数
+    \item[$\theta_c$] 云端纠错模型的冻结参数
     \item[$p_i$] 第 $i$ 个候选标签的归一化概率
-    \item[$H(p)$] 候选分布熵，用于衡量边缘模型输出不确定性
-    \item[$R(x)$] 对输入样本 $x$ 的路由决策函数，输出边缘直通或云端纠错
-    \item[$\mathcal{S}$] 结构化技能库
-    \item[$\Delta_{\text{acc}}$] 相对 baseline 的准确率变化量
-    \item[$\Delta_{\text{lat}}$] 相对 cloud-only 的平均时延下降比例
+    \item[$H(p)$] 候选分布熵，用于衡量输出不确定性
+    \item[$r(x)$] 对输入样本 $x$ 的路由决策函数
+    \item[$\mathcal{S}$] 结构化技能库，用于存储可复用的外部知识单元
+    \item[$\Delta_{\text{acc}}$] 相对基线的准确率变化量
+    \item[$\Delta_{\text{lat}}$] 相对云端单独推理配置的平均时延下降比例
   \end{notationlist}
 
 \end{notation}

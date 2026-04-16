@@ -138,14 +138,60 @@ recent_results:
       edge false negatives. `offset 14` remained wrong even under cloud-only,
       showing that the remaining gap is partly a raw visual-semantic failure of
       the cloud model rather than only reflection anchoring.
+  synth18_three_way_smoke:
+    tag: sf0416
+    report_json: experiments/dtpqa-integration/results/dtpqa_synth18_three_way_sf0416.json
+    edge_run_id: dtpqa_synth18_sf0416_edge_only
+    cloud_run_id: dtpqa_synth18_sf0416_cloud_only
+    hybrid_run_id: dtpqa_synth18_sf0416_hybrid
+    shared_cases: 18
+    exact_match_accuracy:
+      edge_only: 0.5556
+      cloud_only: 0.5
+      hybrid: 0.5556
+    mean_latency_ms:
+      edge_only: 12196.67
+      cloud_only: 113222.6
+      hybrid: 18990.2
+    hybrid_routing:
+      reflection_rate: 0.0556
+      hybrid_strategy_counts:
+        edge_only_passthrough: 17
+        direct_cloud_perception: 1
+    note: >-
+      The balanced multi-category smoke passed the shared-case integrity checks
+      for all three modes. Edge-only and hybrid both reached 10/18 exact-match
+      accuracy on the smoke slice, while cloud-only reached 9/18. The main
+      operational lesson is that cloud-backed runs are stable but materially
+      slower (`~113s` mean latency) and can exceed the prior 300-second request
+      timeout on a minority of cases, so longer timeouts are required for the
+      full synth-500 run.
+workflow_status:
+  synth500_balanced_plan_workflow: implemented
+  note: >-
+    A plan-driven synth-only workflow is now available for a balanced 500-case
+    DTPQA experiment across categories 1-6. The workflow includes a shared
+    planning artifact, plan-driven smoke/full runners for edge_only,
+    cloud_only, and hybrid execution, a multi-category three-way report
+    builder, and a shadow skill-refinement report path with category-isolated
+    skill stores.
+  synth500_smoke_status: passed
+  synth500_smoke_note: >-
+    The 18-case multi-category smoke completed successfully after resuming one
+    cloud-only timeout case with a 600-second request timeout. The launcher now
+    supports explicit `request_timeout_seconds` and `max_retries` settings for
+    more robust long-running synth-500 execution.
 next_actions:
-  - Finish the clean 50-sample `cloud_only` and `hybrid` synth/category_1 runs.
-  - Compare `edge_only` vs `cloud_only` vs `hybrid_direct_cloud` on shared offsets.
-  - Quantify how much of the old hybrid regression came from contamination versus
-    genuine cloud-model misperception on hard far cases.
-  - Decide whether DTPQA benchmark runs should permanently disable skill persistence
-    and classic MCP text reflection in favor of direct cloud re-perception.
-  - Produce a paper-facing progress report summarizing the new failure taxonomy.
+  - Run the full synth-500 workflow on the shared plan with a longer request
+    timeout and persist resumable artifacts for `edge_only`, `cloud_only`, and
+    `hybrid`.
+  - Build the multi-category three-way report once all three 500-case runs are
+    complete on the shared plan.
+  - Run the shadow skill-refinement workflow with category-isolated skill stores
+    and summarize holdout generalization separately from the benchmark-faithful
+    three-way comparison.
+  - Produce a paper-facing progress report once the synth-500 three-way and
+    refinement summaries are complete.
 diagnostics:
   reflection_trigger_issue: >-
     Confirmed. The original entropy/fallback gate never fired on the dominant

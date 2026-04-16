@@ -168,6 +168,11 @@
   primary intervention on hard false negatives. A direct cloud re-perception
   path is currently more reliable because it avoids anchoring on the edge
   model's wrong explanation and avoids malformed fallback labels.
+- Direct cloud re-perception for DTPQA/category_1 is now a runtime-controlled
+  option instead of a hard-wired behavior. That preserves the benchmark-faithful
+  default while allowing a separate shadow refinement workflow to disable the
+  reroute and test MCP reflection plus skill persistence when adaptation
+  evidence is the goal.
 - The new synth/category_1 clean baseline with `Qwen/Qwen3.5-9B` is stronger
   than the real pilot but still exhibits the same structural weakness: the
   first 50-sample edge-only run reached `0.90` exact match overall, yet far
@@ -193,12 +198,40 @@
   benchmark path. Therefore, if the thesis needs a strong skill-refinement
   chapter, it will require a separate adaptive-learning experiment with a clean
   adaptation/evaluation split rather than reusing the benchmark-faithful run.
+- A synth-only, multi-category plan-driven workflow is now implemented for the
+  next stage. It freezes a shared 500-case `synth` plan across categories
+  `1-6`, replays the same cases under `edge_only`, `cloud_only`, and `hybrid`,
+  and builds both aggregate and category-level reports from that shared case
+  set.
+- The benchmark-faithful three-way comparison and the skill-refinement study
+  should remain separate products. The former should keep the clean benchmark
+  path, while the latter should use category-isolated skill stores and an
+  adaptation/holdout split. This keeps “system comparison” and “adaptive
+  learning” claims from contaminating each other.
 - Cross-day remote-model drift is real and large enough to invalidate naive
   pre/post comparisons. A paired comparison between the historical runs and the
   partial `run-dtpqa-real-cat1-kimi512-intervention-quick` replay improved
   `far` cases but regressed `unknown` cases despite zero reflection activations.
   Therefore the next trustworthy comparison must be same-day `trigger off` vs
   `trigger on`.
+- The balanced 18-case multi-category synth smoke is now complete and
+  trustworthy. All three modes (`edge_only`, `cloud_only`, `hybrid`) produced a
+  full 18-case shared-case set, and the new report builder confirmed the shared
+  intersection exactly equals `18`.
+- Real cloud-backed latency on synth smoke is materially higher than the old
+  planning assumptions. The smoke report measured mean latency of about
+  `113.2s` for `cloud_only`, and one category_5 case exceeded the previous
+  `300s` timeout before succeeding under a `600s` resume. Therefore the formal
+  synth-500 run must use longer request timeouts to remain robust.
+- The smoke slice did not yet produce meaningful skill-refinement evidence.
+  Hybrid routing was `17 edge_only_passthrough + 1 direct_cloud_perception`,
+  with `0` skill matches. This is acceptable for smoke validation, but it means
+  the full 500-case benchmark is still necessary to learn whether routing and
+  skills activate outside category_1 under a larger shared-case set.
+- On this smoke slice, `edge_only` and `hybrid` tied at `0.5556` exact match,
+  while `cloud_only` reached `0.5000`. The main lesson is not yet that hybrid
+  wins, but that the new plan-driven workflow, resumable artifacts, and
+  multi-category report path are sound enough for the formal synth-500 run.
 
 ## Open Questions
 

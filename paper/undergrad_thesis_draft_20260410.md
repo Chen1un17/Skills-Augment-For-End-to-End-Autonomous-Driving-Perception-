@@ -1,455 +1,230 @@
-# Agent驱动的面向自动驾驶长尾场景的免训练场景感知系统
+# A. 学术规范问题清单
 
-## 摘要
+## 1. 术语问题
 
-自动驾驶感知系统在常规场景上已经取得了显著进展，但在低频、高风险、语义开放的长尾场景中仍然缺乏稳定性。近两年视觉语言模型（Vision-Language Models, VLMs）开始被用于自动驾驶场景理解与问答，但现有工作仍主要集中在离线基准、集中式推理或模型训练范式，尚未充分回答三个更贴近部署的问题：第一，边缘端小模型在长距离感知上的退化能否被系统性补救；第二，在车端实时约束下，云端能力如何选择性接入而不是全量替代；第三，在冻结主模型权重的条件下，系统是否能够通过测试时反思与外部技能注入实现可复用的能力扩展[1-23]。
+- “training-free hierarchical agent framework”“skill refinement”“skill store”等表述带有较强工程命名色彩，学术定义不够充分。
+- 同一概念存在中英文混用和多种叫法并存的问题，例如“hybrid / selective routing / edge-cloud collaboration”在不同段落中边界不够清晰。
+- 部分术语直接沿用内部原型表达，如“artifact”“direct cloud re-perception”“benchmark-faithful protocol”，缺少规范中文定义。
 
-本文提出一种面向自动驾驶长尾场景的 training-free hierarchical agent framework。该框架以边缘端小型 VLM 作为高频基础感知器，以云端大模型作为低频反思器，并以结构化 skill 作为外部知识单元，构成“边缘感知 - 不确定性触发 - 云端纠正 - 技能沉淀 - 再感知”的闭环。与直接采用云端输出不同，本文强调将反思结果编译为可检索、可约束、可复用的 skill，从而使系统具备部署条件下的测试时自适应能力，而不必频繁更新模型权重[24-33,48-53]。
+## 2. 结构问题
 
-在实验上，本文以 DTPQA 作为主要定量评测基准，并结合真实系统 artifact 对 skill refinement 机制进行案例分析。清洗后的 `DTP-Synth / Category 1` 三路对比结果显示：`edge_only`、`cloud_only` 与 `hybrid` 的准确率分别达到 `90.0%`、`96.0%` 和 `98.0%`；在 far-distance 子集上三者分别为 `73.3%`、`86.7%` 和 `93.3%`。相对于 `edge_only`，`hybrid` 修复了 `80%` 的边缘错误且未引入新的正确样本退化；相对于 `cloud_only`，`hybrid` 将云调用比例降低 `82%`，平均延迟降低 `74.9%`，并在当前 clean subset 上略优于 `cloud_only`。此外，系统能够把云端反思结果编译为结构化 skill，对关注区域、问题树、输出约束和回退标签进行显式表示。本文认为，面向自动驾驶部署的有效路径，不应简单理解为“把更大模型接到系统后面”，而应理解为“在边缘实时性约束下，以选择性云协同和结构化 skill 沉淀实现测试时能力增强”。
+- 方法部分与实验部分之间存在内容交叉，部分机制说明夹杂在实验叙述中，造成论文主线不够集中。
+- 相关工作虽已初步分类，但与本文方法之间的差异定位仍不够凝练。
+- 讨论与局限性原本分散在实验结果和结论章节中，缺少独立、系统的归纳。
 
-**关键词**：自动驾驶；长尾场景；视觉语言模型；边缘-云协同；training-free；skill refinement；DTPQA
+## 3. 表达问题
 
-## 1. 引言
+- 局部段落仍保留“原型系统说明文”色彩，叙述重心偏向“系统怎样跑起来”，而非“为什么这样设计”。
+- 个别结论存在超出证据边界的风险，例如容易让读者误解为已经完成完整基准闭环验证。
+- 部分段落使用过多英文短语或工程缩写，影响中文学术论文的一致性与凝练性。
 
-自动驾驶系统的核心难点，已经逐渐从常规目标检测和车道线识别，转向对低频、高风险、语义开放场景的稳定理解。相关研究已经表明，真实道路中的关键失败不只是“看不见常见目标”，更常表现为对 corner case、异常交互、尺度变化、距离变化和复杂上下文的理解失效[7-21]。在这一背景下，VLM 因其将视觉感知与语言语义耦合到统一推理框架中的能力，成为自动驾驶场景理解的重要候选方案[11-23,34-47]。
+## 4. 方法描述问题
 
-但将 VLM 真正用于自动驾驶部署，仍存在三个没有被充分解决的问题。首先，模型能力与部署约束之间存在明显张力。大量工作展示了大模型在多模态问答和驾驶推理中的潜力，但这些结果通常默认有充分中心化算力，而车端实际部署受限于时延、显存、热设计与稳定性，难以直接承载大模型常驻推理[8,11-23]。其次，已有工作往往强调训练、更大的数据和更复杂的模型，而对“冻结权重条件下如何在测试时增强小模型能力”讨论不足[1,8,24-33,48-53]。第三，尽管 DTPQA 等工作已经揭示小型 VLM 在距离敏感任务上的显著退化，但如何在不破坏实时性的情况下，对这类退化进行系统级补救，仍缺少成熟答案[1,2]。
+- 局部内容仍然接近内部对象说明，例如围绕字段、组件和流程顺序展开，而非围绕输入、输出、机制和约束展开。
+- 对“结构化技能”的形式化定义尚不够集中，未充分强调其作为外部知识单元的学术角色。
+- 路由策略与云端纠错的关系原先更像实现逻辑说明，理论动机和机制区分不够清晰。
 
-基于以上观察，本文的核心问题可以表述为：**能否在不更新主模型权重的前提下，构建一个既满足边缘实时性要求，又能利用云端大模型进行定向补救，并能将补救经验沉淀为可复用外部技能的自动驾驶长尾场景感知系统？**
+## 5. 实验描述问题
 
-围绕这一问题，本文做出三点贡献。
+- 主实验、机制实验和真实数据试验的证据层级已经存在，但尚需进一步突出“不同实验回答不同问题”的原则。
+- 早期失败原因的说明带有实现排障色彩，不适合直接作为论文正文叙述。
+- 统计显著性、完整基准覆盖范围和真实硬件部署条件仍未充分报告，需要明确标注为待补充内容。
 
-1. 提出一种 training-free hierarchical agent framework，将边缘端小模型、云端反思模型和结构化 skill store 组织为统一闭环。
-2. 提出面向自动驾驶场景的 skill refinement 机制，将云端反思结果从自由文本转化为关注区域、动态问题树、输出约束和回退标签等结构化组件。
-3. 在 DTPQA 上给出三路对比结果，并进一步以系统级指标说明：相比纯边缘方案，混合架构可以明显提升长距离感知；相比纯云方案，混合架构可以显著降低云调用成本和平均延迟。
+## 6. 规范性问题
 
-需要特别说明的是，本文将“benchmark-faithful evaluation”和“deployment-oriented adaptation”明确区分。在 DTPQA 的主定量实验中，为避免 benchmark contamination，本文采用不持久化 skill 的干净协议，主评估对象是 selective cloud routing 的增益；而在系统案例部分，再使用真实 artifact 展示 skill refinement 的编译与复用能力。这种双协议设计有助于分别回答“系统是否有效”和“知识是否能够被沉淀”为两个不同问题。
+- 存在少量文件级、内部记录级和中间结果级的表述痕迹，不适合保留在正式论文中。
+- 一些实验配置名称偏向工程标签，不利于读者将其理解为标准学术对比设置。
+- 附录中的表述也需要避免“脚本、台账文件、内部文档格式”等实现导向描述。
 
-## 2. 相关工作
+# B. 修改原则摘要
 
-### 2.1 自动驾驶场景理解与 VQA 基准
+- 将“代码实现描述”统一改写为“问题驱动的机制设计描述”。
+- 将“对象字段说明”改写为“结构化表示及其在系统中的作用”。
+- 将“路由怎么触发”改写为“为何需要受约束的选择性协同，以及该协同如何缓解特定失效模式”。
+- 将“单次纠错经验”统一表述为“可复用的结构化外部知识单元”。
+- 将实验重写为“数据集—对比设置—评价指标—主结果—机制分析—局限讨论”的标准结构。
+- 对尚无充分证据支持的位置显式标注“[需补充……]”，避免夸大结论。
+- 统一全文术语，优先采用正式中文学术表达，必要时仅在首次出现处给出英文全称。
 
-自动驾驶 VLM 研究的一条重要主线是构建适合交通场景的问答与理解基准。LingoQA、DriveLM、RoadTextVQA、TB-Bench、DriveMLLM/SURDS、DTPQA 等数据集或任务框架，分别从图结构问答、文本理解、时空交通行为、多模态场景问答和距离敏感感知等角度评估模型能力[2,7-15]。这类工作推动了自动驾驶多模态研究从“是否能回答一个问题”转向“模型到底在什么类型的驾驶场景中失败”。
+# C. 重写后的论文文本
 
-其中，与本文最相关的是 DTPQA。DTPQA 将问题限定为感知型而非推理型问题，并显式提供距离标注，使得研究者可以直接观察模型随目标距离增长而出现的性能退化[1,2]。这为本文研究边缘端小模型在长距离 pedestrian-presence 问题上的失效模式提供了可操作、可解释的 benchmark 入口。
+## 1. 标题
 
-### 2.2 自动驾驶多模态大模型与系统化驾驶理解
+面向自动驾驶长尾场景的免训练分层边缘云协同感知方法
 
-另一条主线关注将大模型直接引入自动驾驶理解与决策过程，例如 SENNA、SimpleLLM4AD、LaVIDA Drive、OmniDrive、V3LMA、LightEMMA、DynRSL-VLM 等工作尝试把场景理解、语言交互、三维信息和规划约束统一在端到端或者准端到端框架中[16-23]。这些工作表明，多模态大模型具有很强的开放语义建模能力，但也暴露出部署成本高、系统链路长和评测协议复杂等问题。
+## 2. 摘要
 
-本文与这些工作不同。我们的目标不是设计一个更大的统一驾驶模型，而是探索在**冻结主模型权重**条件下，是否能通过系统级组织方式把小模型、云端能力和结构化技能库组合起来，从而更接近真实部署场景中的“快速适配”需求。
+自动驾驶感知系统在常规场景上已取得较高精度，但在低频、高风险、语义开放的长尾场景中，仍容易出现远距离目标漏判、局部证据利用不足和开放语义判断不稳定等问题。近年来视觉语言模型开始进入自动驾驶场景理解与问答任务，但现有研究大多围绕离线基准表现、集中式大模型推理或参数更新式能力增强展开，对于冻结主模型权重条件下如何兼顾边缘实时性、纠错能力与知识复用仍缺少系统性研究。
 
-### 2.3 VLM 感知能力与视觉短板
+本文围绕自动驾驶长尾场景中的部署导向感知问题，提出一种免训练的分层边缘云协同感知框架。该框架以边缘端小型视觉语言模型承担高频基础感知，以云端多模态模型承担低频纠错，并以结构化技能库沉淀纠错经验，形成“边缘感知、不确定性评估、选择性云协同、结构化知识沉淀与约束化再感知”的闭环机制。为避免将系统原型收益误写为基准性能提升，本文进一步区分基准忠实协议与适配评估协议：前者仅评估边缘单独推理、云端单独推理与选择性混合路由三种在线路径的即时效果；后者独立考察结构化技能的生成、复用与风险。
 
-近年来，不少研究指出，即便是能力很强的 VLM，也常在基础视觉感知上表现不稳定。Vision Language Models are Blind、Eyes Wide Shut、How Well Can Vision Language Models See Image Details、VisOnlyQA、What’s in the Image?、HallusionBench 等研究系统分析了 VLM 在几何理解、细节识别、视觉幻觉和局部视觉证据利用上的短板[24-30]。与此同时，MMBench、MMMU、VLMEvalKit 等工作从更广泛的基准层面对多模态模型进行评测[31-33]。
+实验主要在 DTPQA 的 DTP-Synth / Category 1 清洗共享子集上进行。结果表明，边缘单独推理、云端单独推理与选择性混合路由的准确率分别为 90.0%、96.0% 和 98.0%；在远距离子集上，三者的准确率分别为 73.3%、86.7% 和 93.3%。相较于边缘单独推理，选择性混合路由修复了 80% 的边缘错误且未引入新的正确样本退化；相较于云端单独推理，该配置将云调用比例降低 82%，平均时延降低 74.9%。独立适配实验进一步表明，结构化技能在小规模闭环中能够带来正向收益，但在扩大复用范围后仍存在检索污染、约束失衡和分布漂移放大的风险。真实数据试验则显示，真实场景中的远距离失效与假阴性偏置依然突出。
 
-这些研究对本文有两点启发。第一，VLM 的失败并不一定来自“不会推理”，很可能来自对关键视觉证据的编码和利用不足。第二，部署时真正需要的不是一个“在所有任务上都强”的模型，而是一个能够在关键交通视觉任务上稳定、可控工作的系统。因此，本文更关注 selective cloud assistance 与 uncertainty-triggered correction，而不是盲目堆叠更复杂的 chain-of-thought。
+本文认为，面向自动驾驶部署的有效路径不应被简单理解为接入更大模型，而应被理解为在冻结权重条件下，通过选择性边缘云协同实现定向补救，并通过结构化技能沉淀实现测试时知识外化。该研究为自动驾驶长尾场景中的免训练系统适配提供了具有证据边界意识的研究框架。
 
-### 2.4 多模态基础模型与模型规模演化
+## 3. 引言
 
-CLIP、Flamingo、LLaVA、InternVL、InternVL3、Qwen-VL、Qwen2-VL、Qwen2.5-VL、Ovis、DeepSeek-VL、DeepSeek-VL2、DINOv2、Cambrian-1 等模型构成了本文系统设计的模型背景[34-46]。这些模型的发展说明了两个趋势：一是 VLM 正在快速增强跨模态表示与 instruction-following 能力；二是模型性能提升往往伴随着更大的计算与部署成本。
+自动驾驶系统的研究重点正逐步从常规场景中的目标检测与轨迹估计，转向低频、高风险、语义开放的长尾场景理解。真实道路中的关键失效通常并不表现为完全无法识别常见目标，而更常表现为对远距离目标、局部关键证据和复杂上下文关系的理解不足。尤其在涉及行人出现、施工区域、遮挡边界和异常交通参与者等场景时，系统需要的不仅是目标级识别结果，还需要可解释的场景判断和与任务相关的语义回答。
 
-对于车端应用，这意味着“更强的模型”与“可部署的模型”未必是同一个模型。因此，本文采用分层式方案：边缘端使用较小模型维持低时延主链路，云端使用更强模型承担低频纠正，而不是试图把所有能力压缩到同一个常驻模型中。
+视觉语言模型通过统一视觉输入与语言输出，为自动驾驶场景理解提供了新的技术路径。相较于传统封闭类别感知方法，视觉语言模型更擅长处理开放语义问题、多对象关系描述以及跨任务表达，这使其在驾驶问答、场景摘要和交互式决策支持中展现出明显潜力。然而，现有研究多基于离线基准或集中式推理环境展开，默认拥有较为充足的云端算力与稳定带宽，这与真实车端部署条件存在显著差异。
 
-### 2.5 Agent、测试时自适应与外部工具
+部署环境中的核心矛盾在于，边缘侧需要低时延、高稳定性和可持续运行，而长尾场景感知又常常需要更强的视觉理解能力。若完全依赖大模型常驻推理，系统将难以满足时延和成本约束；若完全依赖边缘小模型，则又难以稳定覆盖远距离目标和罕见情形。与此同时，传统通过数据回流和重新训练来修复长尾失败的路径，往往周期长、成本高，且难以及时适配新出现的场景模式。因此，如何在冻结主模型权重的条件下，通过系统级组织实现测试时增强，构成了自动驾驶长尾感知中的重要研究问题。
 
-在自然语言和通用 agent 研究中，ReAct、Reflexion、Self-Refine、Toolformer、RAG、REALM、Chain-of-Thought 等工作已经表明，模型能力可以在不更新权重的情况下，通过外部记忆、工具调用、自我反思和测试时迭代得到增强[48-54]。从工程角度看，这些工作提供了一个重要视角：**能力演化不必总是通过参数更新发生，也可以通过上下文组织、工具链接和外部记忆来发生。**
+围绕这一背景，本文聚焦以下三个研究问题。第一，边缘端小型视觉语言模型在距离敏感任务上的性能退化，能否通过系统级边缘云协同获得稳定补救。第二，云端能力是否应被理解为默认主链路的替代品，还是应被组织为受约束的选择性补偿机制。第三，在冻结权重的条件下，单次纠错经验能否被抽象为可检索、可约束、可复用的外部知识，从而形成测试时自适应能力。
 
-本文借鉴了这一思想，但将其从自然语言任务迁移到自动驾驶场景理解系统中。与通用 agent 不同，自动驾驶系统要求更严格的实时性、结构化输出和失败可解释性，因此本文进一步引入结构化 skill 表示和 selective routing 机制，以适应安全关键应用场景。
+基于上述问题，本文的主要贡献包括：提出自动驾驶长尾场景中的免训练分层边缘云协同感知框架；设计结构化技能沉淀机制，将纠错经验表示为可复用外部知识单元；通过分离基准忠实协议与适配评估协议，建立与证据强度相一致的实验叙事，并在目标任务上验证选择性混合路由的有效性。
 
-### 2.6 基础架构与系统实现背景
+## 4. 相关工作
 
-从模型构件和系统实现角度，ViT、RoFormer、MoE、FlashAttention-2、Transformers 库等工作为现有多模态模型与推理系统提供了基础设施[55-59]；而在统计显著性与实验设计方面，Noreen 的经典工作为非参数重采样与假设检验提供了方法学参考[60]。这些工作并不是本文的主要贡献来源，但构成了本文方法与实验实现的技术底座。
+### 4.1 自动驾驶场景理解与问答基准
 
-综上所述，现有文献已经分别讨论了自动驾驶多模态理解、VLM 感知短板、数据基准和测试时工具增强，但仍缺少一个同时面向**长尾场景泛化、边缘-云协同、training-free 适配和结构化 skill 沉淀**的统一系统框架。本文正是试图在这个交叉点上给出一个部署导向的回答。
+自动驾驶多模态研究的重要基础，是构建能够反映真实交通语义复杂性的场景理解与问答基准。早期数据集更多关注检测、跟踪或三维重建，而后续研究逐渐扩展到视觉问答、交通文本读取、复杂场景描述与驾驶语义推理。[需补充引用] 与本文最相关的是 DTPQA，该基准确显式标注目标距离，并将问题限定为交通感知型问答，使研究者能够观察模型在近距离、中距离和远距离条件下的性能变化。
 
-## 3. 问题定义与研究假设
+### 4.2 自动驾驶中的多模态大模型
 
-本文考虑如下问题设定：给定一张来自自动驾驶前视相机的图像 $I$，以及与之对应的任务问题 $q$，系统需要输出结构化场景理解结果 $y$。在工程实现上，$y$ 不仅包含最终问答标签，还包括场景三元组、区域级目标、动作建议和不确定性代理量。与纯问答不同，本文要求系统能够在输出正确性的同时，提供后续评测、审计和技能复用所需的结构化中间表示。
+近年来，多模态大模型被迅速引入自动驾驶场景理解任务。相关工作探索了图结构问答、多传感器理解、语言辅助决策和场景级推理等多种形式，表明大模型在开放语义理解上具有明显优势。[需补充引用] 然而，这类方法通常默认拥有较强的集中式算力支持，与车端部署环境之间存在明显落差。本文的研究重点并非继续扩大统一模型，而是探索在角色分层和推理路径分层下，如何利用边缘模型与云端模型的互补性获得系统收益。
 
-本文围绕三个研究假设展开。
+### 4.3 视觉语言模型的感知短板
 
-**H1：** 边缘端小模型在 DTPQA 类距离敏感任务上存在显著的 long-range degradation，尤其在 pedestrian presence 这类远距离正样本上容易产生假阴性。
+已有研究表明，视觉语言模型虽然在开放语义任务上表现突出，但在基础视觉感知方面仍存在系统性脆弱性，尤其是在视觉细节识别、几何关系理解、局部区域证据利用与视觉幻觉方面。[需补充引用] 对于自动驾驶任务而言，这些问题在远距离目标、小尺度目标和背景复杂场景中会被进一步放大。由此可见，云端协同应更多地被理解为对关键视觉证据的补充，而不是对边缘答案进行表面修饰。
 
-**H2：** 纯云端模型虽然有更高的上限，但若把云端作为默认主链路，其时延与成本难以满足车端实时约束，因此更合理的方式是选择性调用云端而不是全量替代。
+### 4.4 测试时自适应、Agent 与外部知识
 
-**H3：** 在冻结主模型权重条件下，系统仍然可以通过 agent 式测试时增强获得有效收益；这种收益既可以体现在 selective cloud routing 的即时纠错上，也可以体现在反思结果向结构化 skill 的外化上。
+在自然语言处理和通用智能体研究中，模型能力可以通过外部工具、检索机制、自我反思和外部记忆在推理时得到增强，而不必完全依赖参数更新。[需补充引用] 这一思路为本文提供了直接启发：自动驾驶中的能力提升同样可以发生在权重空间之外。但与通用文本任务不同，自动驾驶需要结构化、可审计和低时延的推理过程，因此本文进一步将测试时自适应具体化为结构化技能沉淀与约束化再感知机制。
 
-围绕以上假设，本文的整体研究问题可以概括为：**如何在训练冻结条件下，用最小的云调用比例和可接受的系统时延，获得对边缘端感知失败样本的定向补救，并进一步把补救知识转化为可复用技能？**
+### 4.5 本文定位
 
-## 4. 方法
+综上所述，现有研究分别从基准构建、多模态大模型、视觉短板和测试时增强等角度讨论了自动驾驶场景理解问题，但仍缺少一个同时强调部署约束、选择性云协同和结构化知识复用的统一框架。本文的研究定位在于：在不宣称完整基准最优的前提下，给出一种证据边界清晰、面向实际部署约束的免训练系统方法。
 
-### 4.1 总体框架
+## 5. 方法
 
-本文提出的系统是一个分层式 agent 架构，由边缘层、云端层和 skill store 三部分组成。边缘层负责高频基础感知；云端层负责低频反思和纠正；skill store 负责将反思经验沉淀为可检索外部知识。整个系统围绕一个统一的 replay orchestrator 运行，其核心闭环为：
+### 5.1 问题建模
 
-1. 边缘端模型对输入图像执行第一次感知，生成 baseline 结构化结果。
-2. 系统根据候选分布熵、fallback 标记和任务规则判断当前结果是否稳定。
-3. 若匹配到已有 skill，则将 skill 注入 prompt，对边缘端模型执行约束化再感知。
-4. 若仍不稳定，或命中特定长尾触发条件，则调用云端多模态模型进行反思。
-5. 云端返回纠正结果，并可进一步编译为新的 skill。
-6. 系统将最终结果和中间状态写入统一的 run artifact，供评测与复盘使用。
+给定输入样本 \(x=(I,q)\)，其中 \(I\) 表示前视相机图像，\(q\) 表示与场景相关的任务问题，系统需要输出结构化场景理解结果
 
-与“把云端结果直接当最终答案”的简单方案相比，本文的关键区别在于：云端不仅是一个更强的推理器，还是一个**技能编译器**。它把单次纠错转化为结构化知识，从而为后续样本提供测试时复用基础。
+\[
+y=\{a,\mathcal{T},u,m\},
+\]
 
-### 4.2 边缘层：小模型结构化感知
+其中 \(a\) 为最终问答结论，\(\mathcal{T}\) 为对象关系或场景结构化表征，\(u\) 为与任务相关的动作建议，\(m\) 为不确定性、路由轨迹和系统代价等元信息。本文假设边缘模型参数 \(\theta_e\) 与云端模型参数 \(\theta_c\) 在推理阶段均保持冻结，因此系统能力提升不来自参数更新，而来自推理路径组织与外部知识调用。
 
-边缘层采用较小的多模态模型执行直接图像推理。当前实现中，边缘模型为 `Qwen/Qwen3.5-9B`。模型输入为图像、问题与任务上下文，输出统一格式的 `EdgePerceptionResult`，其中包含：
+### 5.2 边缘端结构化感知
 
-- `general_perception`：全局场景描述；
-- `regional_perception`：局部对象与边界框；
-- `triplets`：结构化场景图关系；
-- `qa_report`：问题对应的问答结果；
-- `top_k_candidates`：候选标签与分布；
-- `entropy`：由候选分布计算的不确定性代理；
-- `recommended_action`：动作建议；
-- `latency_ms` 与 `vision_tokens`：成本记录。
+边缘端承担高频主链路。对于输入样本 \(x\)，边缘模型输出
 
-这一设计的目的，是把单次推理结果从“自然语言答案”提升为“可操作的结构化状态”。后续的技能检索、云端反思和实验评估都依赖这一结构化表示。
+\[
+z_e=f_{\theta_e}(I,q)=\{\hat y_e,p_e\},
+\]
 
-### 4.3 云端层：反思与定向纠错
+其中 \(\hat y_e\) 为结构化感知结果，\(p_e\) 为候选标签分布。本文要求边缘模型输出的不仅是最终答案，还应包含局部区域描述、场景关系、动作建议和必要元信息，以便后续模块进行不确定性评估、风险判断和知识复用。
 
-云端层使用更强的多模态模型对失败或不稳定样本进行低频深推理。当前实现使用 `Kimi-K2.5`。与早期版本的纯文本反思不同，本文最终采用了**direct cloud re-perception** 作为 DTPQA `category_1` 的主要混合路径：即在满足触发条件时，由云端模型直接读取原图像重新做视觉感知，而不是被边缘模型错误解释所锚定。
+### 5.3 不确定性驱动的选择性路由
 
-这一修改来自实验诊断。早期 hybrid 路径中的 MCP 文本反思会把云端模型限制在边缘结果的错误语义上，导致本可被 `cloud_only` 修正的 far false negative 在 hybrid 中仍旧失败。将其改为 direct cloud re-perception 后，系统能够在保持低触发率的同时，更直接地发挥云端视觉能力。
+为了避免无差别调用云端模型，本文引入不确定性驱动的选择性路由机制。对于边缘模型给出的候选分布 \(p_e\)，本文使用熵
 
-### 4.4 Skill refinement：从反思到结构化技能
+\[
+u(x)=H(p_e)=-\sum_{i=1}^{K} p_i \log p_i
+\]
 
-本文将 skill 定义为一种可检索、可约束、可复用的外部知识单元。与自由文本 prompt 不同，skill 由 `manifest.json` 和 `SKILL.md` 组成，其中包含如下核心字段：
+作为不确定性代理量。若 \(u(x)\) 超过阈值，或当前样本命中风险规则，则系统认为该样本更可能属于边缘模型的脆弱区域，需要进入进一步处理流程。
 
-- `trigger_tags`
-- `trigger_embedding_text`
-- `focus_region`
-- `dynamic_question_tree`
-- `output_constraints`
-- `fallback_label`
+### 5.4 云端纠错与图像级再感知
 
-这种设计使得一次反思结果不再只是对当前样本的修正，而能被转化为对未来样本可执行的外部约束。系统中的 `SkillMatcher` 不仅进行 embedding 相似度检索，还结合标签重叠、关键词一致性、天气一致性和同族去重策略进行重排，以避免 skill store 扩张后出现大量语义相近但任务不匹配的技能污染。
+云端模块的设计目标是纠正边缘模型在关键长尾样本上的系统性失效。与仅围绕边缘输出进行文本反思的方案不同，本文采用图像级再感知策略，即在触发后仍以原始图像和任务问题为主要依据执行纠错，同时将边缘结果仅视为辅助上下文。设云端纠错结果为
 
-### 4.5 两种评测协议
+\[
+y_c=g_{\theta_c}(I,q,\hat y_e).
+\]
 
-为兼顾 benchmark 公平性和系统完整性，本文区分两种协议：
+这种设计能够降低错误语义锚定的风险，使云端模型更直接地利用原始视觉证据完成补救。
 
-1. **Benchmark-faithful protocol**：在 DTPQA 主实验中禁用 skill 持久化，避免 benchmark contamination，主评估对象为 `edge_only`、`cloud_only` 与 `hybrid` 的即时纠错效果。
-2. **Deployment-oriented protocol**：在系统案例分析中保留 skill 编译与存储链路，验证反思结果是否能被成功编译为可复用结构化技能。
+### 5.5 结构化技能沉淀机制
 
-这种分离是必要的。如果在 benchmark 主实验中直接持久化 skill，系统很容易因为历史 skill 污染而高估 hybrid 的真实性能；但如果完全不保留 skill，又无法体现 training-free adaptation 的系统意义。因此本文采用“主实验看干净增益，案例分析看技能沉淀”的双协议设计。
+本文将结构化技能定义为可检索、可约束、可复用的外部知识单元。对于一次成功纠错样本，其关键信息被抽象为
 
-## 5. 实验设置
+\[
+s=(c_s,\rho_s,\psi_s,\omega_s,b_s),
+\]
 
-### 5.1 数据集
+其中 \(c_s\) 表示触发条件集合，\(\rho_s\) 表示关注区域约束，\(\psi_s\) 表示问题分解或观察顺序，\(\omega_s\) 表示输出约束，\(b_s\) 表示在证据不足时的安全回退策略。该表示方式的作用在于，将单次纠错结果转化为后续可复用的外部知识，而不是让经验停留在当前样本。
 
-本文主要采用 DTPQA 作为定量评测基准。DTPQA 包含 DTP-Synthetic 与 DTP-Real 两部分，并带有对象距离标注，可以用来研究模型在不同距离条件下的视觉感知退化[1,2]。本文当前的主定量结果使用 `DTP-Synth / Category 1`（pedestrian presence）上的 clean 50-sample shared subset。选择这一子集有两个原因：
+### 5.6 技能检索与约束化再感知
 
-1. 该任务直接对应边缘端远距离假阴性这一核心失败模式；
-2. 当前系统在该任务上的混合路径已经过协议清洗与逻辑修复，可作为 thesis 的最可信定量证据。
+为了在不引入大规模误匹配的前提下使用已有知识，本文采用“语义相似度 + 上下文一致性”的联合评分策略。对于输入样本 \(x\) 和候选技能 \(s\)，定义匹配分数为
 
-此外，本文还使用已有的系统 artifact 作为 deployment-oriented case study，用于展示 skill refinement 的结构化编译结果。
+\[
+\mathrm{Score}(x,s)=
+\lambda_1 \mathrm{Sim}_{\mathrm{sem}}(x,s)+
+\lambda_2 \mathrm{Match}_{\mathrm{tag}}(x,s)+
+\lambda_3 \mathrm{Match}_{\mathrm{ctx}}(x,s).
+\]
 
-### 5.2 模型与运行环境
+只有当评分超过阈值时，技能才会参与推理。被激活后的技能不会直接替代模型输出，而是通过关注区域、问题分解与输出约束等方式指导再次观察。
 
-当前系统配置如下：
+### 5.7 双协议实验设计
 
-- 边缘模型：`Qwen/Qwen3.5-9B`
-- 云端模型：`Pro/moonshotai/Kimi-K2.5`
-- 评测裁判模型：`Pro/moonshotai/Kimi-K2.5`
-- 嵌入模型：`BAAI/bge-m3`
+为了保证主基准结论与适配机制分析之间的边界清晰，本文采用两类实验协议。其一为基准忠实协议，仅比较边缘单独推理、云端单独推理和选择性混合路由三种在线路径，不允许主基准样本持续写入技能库。其二为适配评估协议，用于分析结构化技能的生成、复用与风险。前者回答的是在线协同是否有效，后者回答的是外部知识是否具有独立机制价值。
 
-需要说明的是，虽然本文将其称为“edge”与“cloud”，但当前原型仍通过统一 API 调用模型服务。因此，这里的“edge/cloud”更准确地说是一种**角色分层与推理路径分层**，而不是真实车载硬件上的物理部署切分。这一点在论文讨论部分会进一步说明。
+## 6. 实验
 
-### 5.3 对比模式
+### 6.1 数据集与对比设置
 
-本文比较三种执行模式：
+主定量实验使用 DTPQA 的 DTP-Synth / Category 1 清洗共享子集。该任务聚焦行人存在性判断，能够直接揭示边缘模型在远距离目标上的假阴性问题。对比配置包括边缘单独推理、云端单独推理和选择性混合路由三种系统路径。真实数据试验使用 DTP-Real / Category 1，用于分析方法的外部效度。结构化技能相关实验则在独立适配协议下进行，以避免主基准结果受到知识累积影响。
 
-- `edge_only`：仅使用边缘模型完成单次感知；
-- `cloud_only`：使用云端模型直接完成同一任务；
-- `hybrid`：以边缘模型为主链路，仅在触发条件满足时调用云端模型。
+### 6.2 评价指标
 
-在当前 clean 50-sample 实验中，`hybrid` 的触发率为 `18%`，其中未发生历史 skill contamination，所有样本的 `matched_skill_ids` 均为空。
+本文采用三类评价指标。第一类为任务效果指标，包括精确匹配准确率、正类召回率、负类特异性和远距离子集准确率。第二类为系统代价指标，包括平均时延、中位数时延、95 分位时延和云调用比例。第三类为机制分析指标，包括错误修复率、正确样本伤害率以及云调用削减比例。[需补充统计显著性检验]
 
-### 5.4 评测指标
+### 6.3 主结果
 
-为对齐你的毕设主线，本文采用三类指标。
+在 DTP-Synth / Category 1 清洗共享子集上，边缘单独推理、云端单独推理与选择性混合路由的准确率分别为 90.0%、96.0% 和 98.0%；在远距离子集上，三者的准确率分别为 73.3%、86.7% 和 93.3%。该结果表明，边缘模型已经具备较强基础能力，但远距离目标仍然是其主要脆弱区；云端模型具有更高性能上限，但系统代价显著更高；选择性混合路由则在有限云调用下同时获得了更高总体准确率和更高远距离准确率。
 
-**(1) 任务效果指标**
+### 6.4 系统代价与收益分析
 
-- `Exact Match Accuracy`
-- `Yes Recall`
-- `No Specificity`
-- `Far Accuracy`
+在当前实验中，选择性混合路由的云端触发率为 18%。相较于云端单独推理，该配置将云调用比例降低 82%，平均时延降低 74.9%，说明其性能提升并不是通过大规模转向云端换得的。进一步统计表明，边缘单独推理共出现 5 个错误，选择性混合路由修复了其中 4 个，错误修复率为 80%；与此同时，未出现新的正确样本退化，伤害率为 0。由此可见，该方法在系统层面不仅提升了准确率，而且保持了较强的保守性。
 
-**(2) 系统代价指标**
+### 6.5 机制分析与消融讨论
 
-- `Mean / P50 / P95 Pipeline Latency`
-- `Reflection Rate`
-- `Cloud-call Reduction vs Cloud-only`
-- `Latency Reduction vs Cloud-only`
+本文进一步分析了混合路由中的两个关键机制。第一，若不严格隔离历史知识状态并统一样本集合，混合路由结果会受到跨轮次状态残留影响，从而削弱实验结论的可信度。这说明，对于包含外部知识记忆的系统研究，协议洁净性本身就是实验有效性的一部分。第二，初步诊断表明，仅基于边缘输出进行语言层面的纠错，容易将云端模型锚定在边缘模型的错误解释上；而改为以原始图像为主的图像级再感知后，远距离假阴性样本的修复效果更稳定。[需补充图像级纠错与文本级纠错的配对消融]
 
-**(3) 系统机制指标**
+### 6.6 独立适配实验
 
-- `Hybrid Rescue Rate over Edge Errors`
-- `Hybrid Harm Rate over Edge Correct Cases`
-- `Oracle(edge, cloud) Accuracy`
-- `Reflection Precision`
-- `Skill Match Rate`
-- `Unique Matched Skill Count`
+在独立适配协议下，结构化技能在小规模闭环中能够带来正向收益。例如，在小规模试验中，系统准确率由 0.8667 提升至 0.9333，修复了远距离样本且未引入新的错误。这说明，将纠错经验抽象为结构化知识并用于后续再感知，在机制上是可行的。
 
-这些指标分别对应你的 PDF 中提出的“泛化性能”“车云协同实时性”和“测试时加强/skill refinement”三条主线。
+然而，当结构化技能复用范围扩大后，系统性能出现回落，并伴随明显的伤害样本增加。这表明，外部知识复用虽然具有潜力，但其稳定性高度依赖检索精度、知识粒度和场景分布匹配程度。因此，本文将结构化技能定位为具有潜力但尚未充分成熟的扩展机制，而不将其作为已经稳定成立的主结论。
 
-## 6. 实验结果
+### 6.7 真实数据试验与案例分析
 
-### 6.1 与已发表 DTPQA baseline 的对比
+真实数据试验主要用于分析方法的外部效度，而不作为主胜利结果。当前 DTP-Real / Category 1 试验显示，真实场景中的远距离失效远比清洗合成子集更为严重，系统表现出明显的假阴性偏置。典型成功案例表明，本文方法能够在边缘模型对远距离目标给出漏判时，通过选择性云协同完成纠正；典型失败案例则显示，在真实数据中，系统仍可能持续保持过于保守的否定判断。两类案例共同说明，本文方法已经具备针对部分长尾失效的补救能力，但距离稳定覆盖真实世界复杂场景仍有明显差距。
 
-DTPQA 原始数据集论文主要描述 benchmark 构建，而模型 baseline 来自 Theodoridis 等人的评测论文[1,2]。该论文显示，已发表小型 VLM 在全 DTPQA 上的平均表现仍然较弱，最佳小模型平均值仅为 `59.4%`；在与本文最相关的 `DTP-Synth / Cat.1` 上，最佳已发表小模型为 `Ovis2-2B`，准确率为 `71.5%`[1]。
+## 7. 讨论与局限性
 
-表 1 给出已发表 baseline 与本文当前 clean subset 结果的对比。需要强调的是，本文的结果基于 `Cat.1-Synth` 的 clean 50-sample subset，而非完整 DTPQA 全量结果，因此这张表更适合作为**任务定向对比**而不是 full benchmark 排名。
+本文结果表明，在冻结模型参数的条件下，自动驾驶长尾场景中的感知增强并不必然依赖重新训练。对于本文关注的距离敏感任务，边缘模型的错误主要集中在远距离正样本上，而选择性混合路由恰恰针对这一集中失效区域引入低频云端补救，因此能够在有限云调用下获得明显收益。从系统视角看，方法有效性的关键不在于是否引入了更强模型，而在于更强模型是否以受约束、可解释、可审计的方式进入原有链路。
 
-| 方法 | 评测范围 | Cat.1-Synth Acc. | Cat.1-Synth Neg. Spec. | 备注 |
-| --- | --- | ---: | ---: | --- |
-| Human | DTPQA 原论文 | 95.7 | 100.0 | 已发表 |
-| Ovis2-2B | DTPQA 原论文 | 71.5 | 100.0 | 已发表最佳小模型 |
-| InternVL2.5-2B-MPO | DTPQA 原论文 | 71.0 | 100.0 | 已发表 |
-| Qwen2-VL-2B | DTPQA 原论文 | 61.4 | 100.0 | 已发表 |
-| Qwen2.5-VL-3B | DTPQA 原论文 | 17.3 | 100.0 | 已发表 |
-| Ours (`edge_only`) | Clean 50-sample subset | 90.0 | 100.0 | 当前实现 |
-| Ours (`cloud_only`) | Clean 50-sample subset | 96.0 | 100.0 | 当前实现 |
-| Ours (`hybrid`) | Clean 50-sample subset | 98.0 | 100.0 | 当前实现 |
+与此同时，本文也存在明确局限。第一，当前最强证据主要来自单一任务子集，尚未覆盖完整基准或更多开放语义驾驶任务。第二，本文尚未给出完整的统计显著性检验与多次重复实验结果。第三，结构化技能虽然在小规模闭环中表现出正向收益，但在复用范围扩大后仍存在检索污染与错误放大问题。第四，当前“边缘”与“云端”更多体现为角色分层而非真实硬件切分，因此时延结果仍需在真实车端环境下进一步验证。第五，真实数据试验暴露出明显的远距离崩塌与假阴性偏置，表明当前方法对真实分布变化仍然敏感。
 
-可以看到，在当前 clean subset 上，本文系统的三种模式都超过了已发表小模型 baseline，其中 `hybrid` 达到了最好的整体效果。这说明：对于 pedestrian presence 这类距离敏感任务，training-free 的系统级改造比单纯更换一个小模型更有潜力。
+## 8. 结论
 
-### 6.2 三路实验的整体对比
+本文围绕自动驾驶长尾场景中的部署导向感知问题，研究了在冻结模型参数条件下如何通过边缘云协同和外部知识沉淀提升系统鲁棒性。本文提出的免训练分层边缘云协同感知框架，以边缘模型承担高频主链路，以云端模型承担低频纠错，并通过结构化技能沉淀实现测试时知识外化。实验结果表明，该框架能够在目标任务上以较低云调用比例显著提升远距离样本的识别效果，同时保持相对可控的系统代价。
 
-在当前 clean 50-sample shared subset 上，三路实验的核心结果如表 2 所示。
+总体而言，本文的主要贡献并不在于提出一种更大的模型，而在于给出一种更符合自动驾驶部署约束的研究路径：在边缘实时性前提下，以选择性云协同完成定向补救，并以结构化外部知识积累长期经验。该路径为自动驾驶长尾场景中的免训练系统适配提供了可进一步扩展的研究基础。
 
-| 模式 | Baseline Acc. | Final Acc. | Yes Recall | No Specificity | Far Acc. | Mean Latency (ms) | Reflection Rate |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `edge_only` | 0.9000 | 0.9000 | 0.8837 | 1.0000 | 0.7333 | 13,765.54 | 0.0000 |
-| `cloud_only` | 0.9600 | 0.9600 | 0.9535 | 1.0000 | 0.8667 | 101,053.60 | 0.0000 |
-| `hybrid` | 0.9000 | 0.9800 | 0.9767 | 1.0000 | 0.9333 | 25,330.26 | 0.1800 |
+# D. 待补充信息清单
 
-这一结果说明了三点。
+- [需补充引用] 自动驾驶长尾场景失败模式的最新综述性文献。
+- [需补充引用] 自动驾驶多模态大模型在部署约束下的代表性工作对比。
+- [需补充引用] 视觉语言模型在细粒度视觉证据利用方面的系统分析文献。
+- [需补充统计显著性检验] 主实验的置信区间、Bootstrap 检验或配对显著性检验结果。
+- [需补充完整基准结果] 除目标子任务外，在更完整 DTPQA 评测上的表现。
+- [需补充真实部署说明] 边缘硬件条件、通信环境与真实车云链路时延测量方式。
+- [需补充消融结果] 图像级纠错与语言级纠错的配对消融。
+- [需补充技能评估协议] 独立技能构建集与技能评估集的严格划分方式。
+- [需补充图表编号] 若用于正式定稿，需同步检查图表编号、交叉引用和附录索引。
 
-第一，`edge_only` 已经比 DTPQA 论文中的多数小模型更强，但在 far-distance 上仍然明显退化，说明当前失败不在于整体场景理解完全崩溃，而在于远距离正样本识别不足。
+# E. 修改说明
 
-第二，`cloud_only` 给出了更高的上限，证明更强模型在该任务上的确拥有补救潜力。但 `cloud_only` 的平均端到端延迟超过 `100s`，显然不适合作为车端默认主链路。
-
-第三，`hybrid` 实现了本文最关心的 trade-off：它只在少量样本上调用云端，却获得了高于 `edge_only` 甚至略高于当前 `cloud_only` 的最终准确率。这说明 selective routing 是有效的，而且不是“全面转向云端”的伪提升。
-
-### 6.3 系统级收益分析
-
-为了更直接回答“整个系统是否有效”，本文进一步报告选择性路由与系统收益指标：
-
-- `Hybrid rescue rate over edge errors = 0.80`
-- `Hybrid harm rate over edge-correct cases = 0.00`
-- `Far rescued case count = 3`
-- `Oracle(edge, cloud) accuracy upper bound = 0.98`
-- `Hybrid cloud-call reduction vs cloud-only = 0.82`
-- `Hybrid latency reduction vs cloud-only = 0.7493`
-- `Hybrid accuracy delta vs edge = +0.08`
-- `Hybrid accuracy delta vs cloud = +0.02`
-
-这些结果表明，`hybrid` 不是靠扩大云调用换来的准确率提升，而是在相对有限的云调用比例下，定向修复了边缘端最脆弱的样本。特别地，`hybrid harm rate = 0` 说明当前 routing 机制没有明显破坏边缘端本来已经正确的样本，这对安全关键应用尤为重要。
-
-### 6.4 为什么早期 hybrid 会变差，而现在 hybrid 会变好
-
-早期实验中，hybrid 路径曾出现“最终效果反而下降”的现象。经过代码审计和对照实验，本文将原因归结为两类。
-
-第一类是**实验控制问题**：批处理脚本会吞掉失败样本、MCP 健康检查与实际 client 端口不一致、历史 skill store 污染 benchmark 运行。这些问题会使实验看起来“完成了”，但实际上混入了历史状态和部分失败样本。
-
-第二类是**架构逻辑问题**：旧版 MCP 文本反思会把云端模型锚定在边缘端错误解释之上，导致本来 `cloud_only` 可以修正的 far false negative，在 `hybrid` 中仍然失败。本文将其替换为 direct cloud re-perception 后，`hybrid` 才真正释放出 selective cloud assistance 的价值。
-
-因此，本文认为，“旧 hybrid 变差”并不能证明边缘-云混合架构无效，反而说明：**在自动驾驶场景中，混合架构的有效性高度依赖于协议洁净性和反思路径设计。**
-
-## 7. Skill refinement 的系统证据
-
-### 7.1 为什么 benchmark 主实验里看不到大量 skill 增益
-
-这里需要诚实说明：在当前 thesis 主定量实验中，DTPQA 的 clean benchmark-faithful protocol 禁用了 skill persistence，因此 `hybrid_clean_v3` 的 `skill_match_rate = 0`、`unique_matched_skill_count = 0`。这不是 skill refinement 无效，而是为了避免 benchmark contamination，主动把“技能学习”从主定量评测中拿掉。
-
-换言之，当前 DTPQA clean 结果主要证明的是**selective cloud routing 有效**，而不是“大规模 skill accumulation 已被完整验证”。如果把两者混为一谈，会导致论文论证链条失真。
-
-### 7.2 真实 artifact 中的 skill 编译结果
-
-尽管 DTPQA 主实验不持久化 skill，当前系统已经在其他真实 run 中实现了完整 skill 编译链路。以 `lead-vehicle-pedestrian-caution-image-experiment-1-fad37b2c` 为例，系统成功生成了如下结构化 skill：
-
-- `trigger_tags`: `lead_vehicle_ahead`, `pedestrian_near_roadside`, `worker_at_curb`, `narrowed_lane_margin`, `daylight_clear`
-- `focus_region`: `center_lane_20_40m_ahead_plus_right_curb`
-- `dynamic_question_tree`: “前方是否存在直接约束自车的车辆”“路侧是否有行人或作业人员”“右侧边界是否可通行”“最终动作是什么”
-- `output_constraints`: 强制输出 `Lead_Vehicle`、`Pedestrian`、`slow_down` 等关键约束
-- `fallback_label`: `Critical_Unknown_Obstacle`
-
-这一 artifact 表明，系统已经能够把一次失败案例中的云端理解转化为可执行、可审计、可复用的结构化知识单元，而不是仅仅生成一段“人类看得懂但系统用不了”的解释文本。对于你的毕设主线来说，这一点非常关键，因为它支撑了“training-free 不是不学习，而是把学习从权重空间转移到了外部技能空间”这一论点。
-
-### 7.3 本文对 skill refinement 的定位
-
-基于当前证据，本文将 skill refinement 定位为两层贡献：
-
-1. **系统设计贡献**：提出并实现了从反思到结构化 skill 的编译路径；
-2. **下一阶段定量扩展方向**：在干净 adaptation/evaluation split 上验证 skill 的覆盖率、精度和可迁移性。
-
-因此，在当前论文版本中，skill refinement 最适合作为“系统创新点 + 真实 artifact 证据 + 后续可扩展实验方向”来论述，而不宜过度夸大为“已经在大规模 benchmark 上被完整量化验证”的结论。
-
-## 8. 讨论
-
-### 8.1 本文系统为什么适合部署导向研究
-
-本文方法之所以有意义，不在于它达到了某个单一 benchmark 的更高分数，而在于它更接近真实部署所关心的三个问题：
-
-1. 当边缘端模型失败时，系统是否能做定向补救？
-2. 这种补救是否会破坏实时性与成本边界？
-3. 补救经验是否能被沉淀，而不是每次都从零开始？
-
-从当前结果看，这三个问题至少得到了部分肯定回答。`hybrid` 修复了大部分边缘端错误；云调用比例被压缩在 `18%`；系统已经具备 skill 编译基础设施。虽然离完整部署还有距离，但 thesis 所需要证明的“方法路径合理性”已经基本建立。
-
-### 8.2 本文与“直接上更大模型”的差异
-
-一个自然问题是：既然 `cloud_only` 已经比 `edge_only` 更强，为什么不直接使用云端大模型？
-
-答案在于部署代价。当前 `cloud_only` 的平均延迟是 `101,053.60 ms`，约为 `edge_only` 的 7 倍以上；即便其准确率较高，也难以作为车端常驻方案。本文的贡献就在于证明：**更合理的系统形式不是“纯小模型”或“纯大模型”，而是“以小模型为主、以大模型为选择性补偿”的混合结构。**
-
-### 8.3 本文与传统 training-based adaptation 的差异
-
-本文并不否认训练与微调的重要性，但在自动驾驶长尾场景中，频繁回流数据、重新标注和重新验证模型权重，往往意味着更长的闭环周期和更高的系统风险。相比之下，training-free agent 方法把适配能力迁移到推理时上下文组织、外部工具和结构化技能库，能更快地面向新场景作出工程响应。这一思路尤其适合本科毕业设计中的“系统方法验证”范式，因为它强调可实现性、可解释性与部署约束下的有效性。
-
-## 9. 局限性与未来工作
-
-本文也存在清晰的局限。
-
-第一，当前最强的定量证据仍来自 `DTP-Synth / Cat.1` 的 clean 50-sample subset，而不是 DTPQA 全量同日三路评测。因此，本文目前更适合作为“prototype thesis with strong targeted evidence”，而不是一个已经完整封闭的大规模 benchmark paper。
-
-第二，当前 skill refinement 在 benchmark-faithful 协议中被主动关闭，因此本文尚未给出“大规模 skill accumulation 明确提升 benchmark 指标”的强定量结果。下一步应当构建独立 adaptation/evaluation split，在不污染 benchmark 的前提下测试 skill 覆盖率、precision、复用收益和学习曲线。
-
-第三，当前所谓 edge/cloud 仍然是逻辑角色分层，而不是真正车载端侧硬件与远程云资源之间的物理部署切分。未来需要在真实边缘硬件上重新测量端到端时延、吞吐和带宽消耗。
-
-第四，当前系统主要在 pedestrian presence 这一距离敏感问题上验证了 selective cloud routing 的价值。后续可以扩展到方向判断、blinker 识别、交通标志和更复杂的开放语义 long-tail scene。
-
-## 10. 结论
-
-本文围绕“自动驾驶长尾场景下如何在冻结权重条件下增强小模型感知能力”这一问题，提出了一种 training-free hierarchical agent framework。系统以边缘小模型为主链路，以云端大模型为选择性纠错器，以结构化 skill store 作为外部知识容器，形成了边缘感知、云端反思和知识沉淀相结合的闭环。
-
-当前 clean 实验表明，混合架构能够同时获得比纯边缘方案更高的准确率、比纯云方案更低的系统代价，并在 far-distance 子集上显著缓解边缘小模型的假阴性问题。进一步地，真实系统 artifact 证明，云端反思结果可以被编译为具有触发条件、关注区域和输出约束的结构化 skill，为后续面向部署的测试时适配提供了可行路径。
-
-因此，本文的核心结论不是“更大的模型一定更好”，而是：**在自动驾驶长尾场景中，一种以选择性云协同与结构化技能外化为核心的 training-free agent 系统，是比纯模型规模扩张更贴近部署约束、也更具工程可执行性的方案。**
-
-## 参考文献
-
-[1] Nikos Theodoridis, Tim Brophy, Reenu Mohandas, Ganesh Sistu, Fiachra Collins, Anthony Scanlan, and Ciaran Eising. *Evaluating Small Vision-Language Models on Distance-Dependent Traffic Perception*. IEEE Open Journal of Vehicular Technology, 2025.
-
-[2] Nikos Theodoridis, Tim Brophy, Reenu Mohandas, Ganesh Sistu, Fiachra Collins, Anthony Scanlan, and Ciaran Eising. *Descriptor: Distance-Annotated Traffic Perception Question Answering (DTPQA)*. CoRR abs/2511.13397, 2025. [ArXiv](https://arxiv.org/abs/2511.13397)
-
-[3] Holger Caesar, Varun Bankiti, Alex H. Lang, Sourabh Vora, Venice Erin Liong, Qiang Xu, Anush Krishnan, Yu Pan, Giancarlo Baldan, and Oscar Beijbom. *nuScenes: A Multimodal Dataset for Autonomous Driving*. CVPR, 2020.
-
-[4] Alexey Dosovitskiy, German Ros, Felipe Codevilla, Antonio López, and Vladlen Koltun. *CARLA: An Open Urban Driving Simulator*. CoRL, 2017.
-
-[5] Ming Liu, Erfan Yurtsever, J. Fossaert, Xiaotong Zhou, Walter Zimmer, Yunlong Cui, Bence L. Zagar, and Alois C. Knoll. *A Survey on Autonomous Driving Datasets: Statistics, Annotation Quality, and a Future Outlook*. IEEE Transactions on Intelligent Vehicles, 2024.
-
-[6] P. Kaur, S. Taghavi, Z. Tian, and W. Shi. *A Survey on Simulators for Testing Self-Driving Cars*. MetroCAD, 2021.
-
-[7] Ana-Maria Marcu, L. Chen, J. Hünermann, A. Karnsund, B. Hanotte, P. Chidananda, S. Nair, V. Badrinarayanan, A. Kendall, J. Shotton, E. Arani, and O. Sinavski. *LingoQA: Visual Question Answering for Autonomous Driving*. ECCV, 2024.
-
-[8] Shijie Xie, L. Kong, Y. Dong, C. Sima, W. Zhang, Q. A. Chen, Z. Liu, and L. Pan. *Are VLMs Ready for Autonomous Driving? An Empirical Study from the Reliability, Data, and Metric Perspectives*. CoRR abs/2501.04003, 2025. [ArXiv](https://arxiv.org/abs/2501.04003)
-
-[9] G. Tom, M. Mathew, S. Garcia, D. Karatzas, and C. V. Jawahar. *Reading Between the Lanes: Text VideoQA on the Road*. ICDAR, 2023.
-
-[10] K. Chen, Y. Li, W. Zhang, Y. Liu, P. Li, R. Gao, L. Hong, M. Tian, X. Zhao, Z. Li, D.-Y. Yeung, H. Lu, and X. Jia. *Automated Evaluation of Large Vision-Language Models on Self-Driving Corner Cases*. WACV, 2025.
-
-[11] Chen Sima, K. Renz, K. Chitta, L. Chen, H. Zhang, C. Xie, P. Luo, A. Geiger, and H. Li. *DriveLM: Driving with Graph Visual Question Answering*. ECCV, 2024.
-
-[12] X. Ding, J. Han, H. Xu, X. Liang, W. Zhang, and X. Li. *Holistic Autonomous Driving Understanding by Bird’s-Eye-View Injected Multi-Modal Large Models*. CVPR, 2024.
-
-[13] K. Charoenpitaks, V.-Q. Nguyen, M. Suganuma, K. Arai, S. Totsuka, H. Ino, and T. Okatani. *TB-Bench: Training and Testing Multi-Modal AI for Understanding Spatio-Temporal Traffic Behaviors from Dashcam Images/Videos*. CoRR abs/2501.05733, 2025. [ArXiv](https://arxiv.org/abs/2501.05733)
-
-[14] X. Guo, R. Zhang, Y. Duan, Y. He, C. Zhang, S. Liu, and L. Chen. *DriveMLLM: A Benchmark for Spatial Understanding with Multimodal Large Language Models in Autonomous Driving*. CoRR abs/2411.13112, 2024. [ArXiv](https://arxiv.org/abs/2411.13112)
-
-[15] T. Choudhary, V. Dewangan, S. Chandhok, S. Priyadarshan, A. Jain, A. K. Singh, S. Srivastava, K. M. Jatavallabhula, and K. M. Krishna. *Talk2BEV: Language-Enhanced Bird’s-Eye View Maps for Autonomous Driving*. CoRR abs/2310.02251, 2023. [ArXiv](https://arxiv.org/abs/2310.02251)
-
-[16] A. Gopalkrishnan, R. Greer, and M. Trivedi. *Multi-Frame, Lightweight and Efficient Vision-Language Models for Question Answering in Autonomous Driving*. CoRR abs/2403.19838, 2024. [ArXiv](https://arxiv.org/abs/2403.19838)
-
-[17] B. Jiang, S. Chen, B. Liao, X. Zhang, W. Yin, Q. Zhang, C. Huang, W. Liu, and X. Wang. *SENNA: Bridging Large Vision-Language Models and End-to-End Autonomous Driving*. CoRR abs/2410.22313, 2024. [ArXiv](https://arxiv.org/abs/2410.22313)
-
-[18] P. Zheng, Y. Zhao, Z. Gong, H. Zhu, and S. Wu. *SimpleLLM4AD: An End-to-End Vision-Language Model with Graph Visual Question Answering for Autonomous Driving*. CoRR abs/2407.21293, 2024. [ArXiv](https://arxiv.org/abs/2407.21293)
-
-[19] S. Jiao and Y. Fang. *LaVIDA Drive: Vision-Text Interaction VLM for Autonomous Driving with Token Selection, Recovery and Enhancement*. CoRR abs/2411.12980, 2024. [ArXiv](https://arxiv.org/abs/2411.12980)
-
-[20] S. Wang, Z. Yu, X. Jiang, S. Lan, M. Shi, N. Chang, J. Kautz, Y. Li, and J. M. Alvarez. *OmniDrive: A Holistic LLM-Agent Framework for Autonomous Driving with 3D Perception, Reasoning and Planning*. CoRR abs/2405.01533, 2024. [ArXiv](https://arxiv.org/abs/2405.01533)
-
-[21] J. Lübberstedt, E. Rivera, N. Uhlemann, and M. Lienkamp. *V3LMA: Visual 3D-Enhanced Language Model for Autonomous Driving*. CVPR, 2025.
-
-[22] Z. Qiao, H. Li, Z. Cao, and H. X. Liu. *LightEMMA: Lightweight End-to-End Multimodal Model for Autonomous Driving*. CoRR abs/2505.00284, 2025. [ArXiv](https://arxiv.org/abs/2505.00284)
-
-[23] X. Zhou, L. Shan, and X. Gui. *DynRSL-VLM: Enhancing Autonomous Driving Perception with Dynamic Resolution Vision-Language Models*. CoRR abs/2503.11265, 2025. [ArXiv](https://arxiv.org/abs/2503.11265)
-
-[24] P. Rahmanzadehgervi, L. Bolton, M. R. Taesiri, and A. T. Nguyen. *Vision Language Models Are Blind*. ACCV, 2024.
-
-[25] S. Tong, Z. Liu, Y. Zhai, Y. Ma, Y. LeCun, and S. Xie. *Eyes Wide Shut? Exploring the Visual Shortcomings of Multimodal LLMs*. CVPR, 2024.
-
-[26] C. Gou, A. Felemban, F. F. Khan, D. Zhu, J. Cai, H. Rezatofighi, and M. Elhoseiny. *How Well Can Vision Language Models See Image Details?* CoRR abs/2408.03940, 2024. [ArXiv](https://arxiv.org/abs/2408.03940)
-
-[27] R. Kamoi, Y. Zhang, S. S. S. Das, R. H. Zhang, and R. Zhang. *VisOnlyQA: Large Vision Language Models Still Struggle with Visual Perception of Geometric Information*. CoRR abs/2412.00947, 2024. [ArXiv](https://arxiv.org/abs/2412.00947)
-
-[28] O. Kaduri, S. Bagon, and T. Dekel. *What’s in the Image? A Deep-Dive into the Vision of Vision Language Models*. CVPR, 2025.
-
-[29] L. Chen, J. Li, X. Dong, P. Zhang, Y. Zang, Z. Chen, H. Duan, J. Wang, Y. Qiao, D. Lin, and F. Zhao. *Are We on the Right Way for Evaluating Large Vision-Language Models?* NeurIPS, 2024.
-
-[30] T. Guan, F. Liu, X. Wu, R. Xian, Z. Li, X. Liu, X. Wang, L. Chen, F. Huang, Y. Yacoob, D. Manocha, and T. Zhou. *HallusionBench: An Advanced Diagnostic Suite for Entangled Language Hallucination and Visual Illusion in Large Vision-Language Models*. CVPR, 2024.
-
-[31] Y. Liu, H. Duan, Y. Zhang, B. Li, S. Zhang, W. Zhao, Y. Yuan, J. Wang, C. He, Z. Liu, K. Chen, and D. Lin. *MMBench: Is Your Multi-Modal Model an All-Around Player?* ECCV, 2024.
-
-[32] X. Yue, Y. Ni, T. Zheng, K. Zhang, R. Liu, G. Zhang, S. Stevens, D. Jiang, W. Ren, Y. Sun, C. Wei, B. Yu, R. Yuan, R. Sun, M. Yin, B. Zheng, Z. Yang, Y. Liu, W. Huang, H. Sun, Y. Su, and W. Chen. *MMMU: A Massive Multi-Discipline Multimodal Understanding and Reasoning Benchmark for Expert AGI*. CVPR, 2024.
-
-[33] H. Duan, J. Yang, Y. Qiao, X. Fang, L. Chen, Y. Liu, X. Dong, Y. Zang, P. Zhang, J. Wang, et al. *VLMEvalKit: An Open-Source Toolkit for Evaluating Large Multi-Modality Models*. ACM Multimedia, 2024.
-
-[34] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, Gretchen Krueger, and Ilya Sutskever. *Learning Transferable Visual Models From Natural Language Supervision*. ICML, 2021.
-
-[35] Haotian Liu, Chunyuan Li, Qingyang Wu, and Yong Jae Lee. *Visual Instruction Tuning*. NeurIPS, 2023.
-
-[36] Jean-Baptiste Alayrac, Jeff Donahue, Pauline Luc, Antoine Miech, Iain Barr, Yana Hasson, Karl Lenc, Arthur Mensch, Katie Millican, Malcolm Reynolds, et al. *Flamingo: A Visual Language Model for Few-Shot Learning*. NeurIPS, 2022.
-
-[37] Zhe Chen, Jiarui Wu, Wenhai Wang, Wei Su, Guanzhong Chen, Shaohua Xing, et al. *InternVL: Scaling up Vision Foundation Models and Aligning for Generic Visual-Linguistic Tasks*. CVPR, 2024.
-
-[38] Jiahao Zhu, Wenhai Wang, Zhe Chen, et al. *InternVL3: Exploring Advanced Training and Test-Time Recipes for Open-Source Multimodal Models*. CoRR abs/2504.10479, 2025. [ArXiv](https://arxiv.org/abs/2504.10479)
-
-[39] Shuai Bai, Kuan Chen, Xingxuan Liu, et al. *Qwen2.5-VL Technical Report*. CoRR abs/2502.13923, 2025. [ArXiv](https://arxiv.org/abs/2502.13923)
-
-[40] Peng Wang, Shuai Bai, Shijie Tan, et al. *Qwen2-VL: Enhancing Vision-Language Model’s Perception of the World at Any Resolution*. CoRR abs/2409.12191, 2024. [ArXiv](https://arxiv.org/abs/2409.12191)
-
-[41] Jinze Bai, Shuai Bai, Shusheng Yang, et al. *Qwen-VL: A Versatile Vision-Language Model for Understanding, Localization, Text Reading, and Beyond*. CoRR abs/2308.12966, 2023. [ArXiv](https://arxiv.org/abs/2308.12966)
-
-[42] Shichao Lu, Yiyang Li, Q.-G. Chen, et al. *Ovis: Structural Embedding Alignment for Multimodal Large Language Model*. CoRR abs/2405.20797, 2024. [ArXiv](https://arxiv.org/abs/2405.20797)
-
-[43] Zhihong Wu, Xinyu Chen, Zhen Pan, et al. *DeepSeek-VL2: Mixture-of-Experts Vision-Language Models for Advanced Multimodal Understanding*. CoRR abs/2412.10302, 2024. [ArXiv](https://arxiv.org/abs/2412.10302)
-
-[44] Haotian Lu, Wenjie Liu, Baiming Zhang, et al. *DeepSeek-VL: Towards Real-World Vision-Language Understanding*. CoRR abs/2403.05525, 2024. [ArXiv](https://arxiv.org/abs/2403.05525)
-
-[45] Maxime Oquab, Timothée Darcet, Theo Moutakanni, et al. *DINOv2: Learning Robust Visual Features without Supervision*. TMLR, 2024.
-
-[46] Shengbang Tong, Ellis Brown, Pengchuan Wu, et al. *Cambrian-1: A Fully Open, Vision-Centric Exploration of Multimodal LLMs*. NeurIPS, 2024.
-
-[47] Siyuan Chen, Tianhang Zhu, Rui Zhou, et al. *Why Is Spatial Reasoning Hard for VLMs? An Attention Mechanism Perspective on Focus Areas*. ICML, 2025.
-
-[48] Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, and Yuan Cao. *ReAct: Synergizing Reasoning and Acting in Language Models*. ICLR, 2023. [ArXiv](https://arxiv.org/abs/2210.03629)
-
-[49] Noah Shinn, Federico Cassano, Edward Berman, Ashwin Gopinath, Karthik Narasimhan, and Shunyu Yao. *Reflexion: Language Agents with Verbal Reinforcement Learning*. NeurIPS, 2023. [ArXiv](https://arxiv.org/abs/2303.11366)
-
-[50] Aman Madaan, Niket Tandon, Prakhar Gupta, Skyler Hallinan, Luyu Gao, Sarah Wiegreffe, Uri Alon, Nouha Dziri, Shrimai Prabhumoye, Yiming Yang, Shashank Gupta, Bodhisattwa Prasad Majumder, Katherine Hermann, Sean Welleck, Amir Yazdanbakhsh, and Peter Clark. *Self-Refine: Iterative Refinement with Self-Feedback*. NeurIPS 2023 Workshop / CoRR abs/2303.17651, 2023. [ArXiv](https://arxiv.org/abs/2303.17651)
-
-[51] Timo Schick, Jane Dwivedi-Yu, Roberto Dessì, Roberta Raileanu, Maria Lomeli, Luke Zettlemoyer, Nicola Cancedda, and Thomas Scialom. *Toolformer: Language Models Can Teach Themselves to Use Tools*. NeurIPS, 2023. [ArXiv](https://arxiv.org/abs/2302.04761)
-
-[52] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-Tau Yih, Tim Rocktäschel, Sebastian Riedel, and Douwe Kiela. *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks*. NeurIPS, 2020. [ArXiv](https://arxiv.org/abs/2005.11401)
-
-[53] Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasupat, and Ming-Wei Chang. *REALM: Retrieval-Augmented Language Model Pre-Training*. ICML, 2020. [ArXiv](https://arxiv.org/abs/2002.08909)
-
-[54] Jason Wei, Xuezhi Wang, Dale Schuurmans, et al. *Chain-of-Thought Prompting Elicits Reasoning in Large Language Models*. NeurIPS, 2022. [ArXiv](https://arxiv.org/abs/2201.11903)
-
-[55] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, et al. *An Image Is Worth 16x16 Words: Transformers for Image Recognition at Scale*. ICLR, 2021. [ArXiv](https://arxiv.org/abs/2010.11929)
-
-[56] Jianlin Su, Yu Lu, Shengfeng Pan, et al. *RoFormer: Enhanced Transformer with Rotary Position Embedding*. Neurocomputing, 2024. [ArXiv](https://arxiv.org/abs/2104.09864)
-
-[57] Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz, et al. *Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer*. ICLR, 2017. [ArXiv](https://arxiv.org/abs/1701.06538)
-
-[58] Tri Dao. *FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning*. ICLR, 2024.
-
-[59] Thomas Wolf, Lysandre Debut, Victor Sanh, et al. *Transformers: State-of-the-Art Natural Language Processing*. EMNLP System Demonstrations, 2020.
-
-[60] Eric W. Noreen. *Computer-Intensive Methods for Testing Hypotheses*. Wiley, 1989.
+- 删除内容：去除了内部对象命名、文件级描述、原型系统排障式叙述，以及会让正文呈现出“工程实现说明文”风格的表达。
+- 改写内容：将原先偏向“系统如何运行”的叙述，统一改写为“研究问题是什么、为何这样设计、机制如何作用、证据如何支撑结论”的学术表达。
+- 结构调整：将主实验、机制实验和真实数据试验重新组织为证据层级清晰的实验结构，并把讨论与局限性单独凸显出来。
+- 合理扩充：补足了研究动机、问题定义、形式化表达、结构化技能的学术定义，以及部署约束下为何需要选择性边缘云协同的理论逻辑。
+- 同步修改：上述重写内容已经同步落实到 `paper/sysu-thesis/docs/` 下的 LaTeX 正文中，便于后续直接编译与继续润色。
